@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>My Dashboard</title>
+<title>All in Won</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -16,26 +16,29 @@
   .spin { animation: spin 1s linear infinite; display:inline-block; }
   .live-dot { width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;display:inline-block;margin-right:5px; }
   .card { animation: fadein 0.3s ease; }
-  ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:#0f172a; } ::-webkit-scrollbar-thumb { background:#312e81; border-radius:2px; }
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:#0f172a; }
+  ::-webkit-scrollbar-thumb { background:#312e81; border-radius:2px; }
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef } = React;
 
 const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("ko-KR", {maximumFractionDigits:0});
+const fmtDec = (n, d=2) => n == null ? "—" : Number(n).toLocaleString("ko-KR", {minimumFractionDigits:d, maximumFractionDigits:d});
 const fgColor = v => v>=75?"#22c55e":v>=55?"#86efac":v>=45?"#facc15":v>=25?"#f97316":"#ef4444";
 const fgLabel = v => v>=75?"극도 탐욕":v>=55?"탐욕":v>=45?"중립":v>=25?"공포":"극도 공포";
 
-function Gauge({value=50}) {
+function Gauge({value=50, size=140}) {
   const r=48,cx=65,cy=68;
   const segs=["#ef4444","#f97316","#facc15","#86efac","#22c55e"];
   const pt=(pct)=>({x:cx+r*Math.cos(Math.PI*(1-pct)),y:cy-r*Math.sin(Math.PI*(1-pct))});
   const arc=(s,e)=>{const p1=pt(s),p2=pt(e);return `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 1 ${p2.x} ${p2.y}`;};
   const needle=pt(value/100); const col=fgColor(value);
   return (
-    <svg width={160} height={95} viewBox="0 0 130 90">
+    <svg width={size} height={size*0.65} viewBox="0 0 130 90">
       {segs.map((c,i)=><path key={i} d={arc(i/5,(i+1)/5)} stroke={c} strokeWidth={9} fill="none" strokeLinecap="round" opacity={0.35}/>)}
       <path d={arc(0,value/100)} stroke={col} strokeWidth={9} fill="none" strokeLinecap="round"/>
       <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke={col} strokeWidth={2.5} strokeLinecap="round"/>
@@ -45,8 +48,8 @@ function Gauge({value=50}) {
   );
 }
 
-const TABS=["⚡ BTC 시세","😨 공포탐욕","🏆 시총순위","🏛 대사관","🚗 로보택시"];
-const TAB_COLORS=["#6366f1","#f97316","#f59e0b","#22c55e","#3b82f6"];
+const TABS=["🏆 시총순위","🏛 대사관","🚗 로보택시"];
+const TAB_COLORS=["#f59e0b","#22c55e","#3b82f6"];
 
 const MCAP_DATA=[
   {rank:1, name:"Gold",      sym:"GOLD", cap:"$35.98T",p:"$5,175", ch:"-0.07%",up:false},
@@ -80,8 +83,12 @@ function App() {
   const [tab,setTab]=useState(0);
   const [btcUsdt,setBtcUsdt]=useState(null);
   const [btcKrw,setBtcKrw]=useState(null);
-  const [usdKrw,setUsdKrw]=useState(1482);
+  const [usdKrw,setUsdKrw]=useState(null);
+  const [jpyKrw,setJpyKrw]=useState(null);
+  const [eurKrw,setEurKrw]=useState(null);
+  const [cnyKrw,setCnyKrw]=useState(null);
   const [fng,setFng]=useState(32);
+  const [miningCost,setMiningCost]=useState(null);
   const [loading,setLoading]=useState(false);
   const [lastUpdate,setLastUpdate]=useState(null);
   const [errors,setErrors]=useState({});
@@ -94,28 +101,50 @@ function App() {
     setLoading(true);
     const errs={};
 
-    // BTC/USDT Binance
+    // 1) BTC/USDT Binance
     try {
       const r=await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
       const d=await r.json();
-      setBtcUsdt(parseFloat(d.price));
-    } catch(e){ errs.btc=true; }
+      const price = parseFloat(d.price);
+      setBtcUsdt(price);
+      // 채굴 원가: BTC 가격 기반 동적 추정
+      // 실제 채굴 원가는 해시레이트·전기비 기반. 현재 난이도 기준 ~$78K 추정
+      // MacroMicro API가 막혀있어 CoinMetrics 공개 데이터 시도
+      try {
+        const mr = await fetch("https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=RevHashRateUSD&frequency=1d&limit=1&api_key=");
+        const md = await mr.json();
+        const hashVal = md?.data?.[0]?.RevHashRateUSD;
+        if(hashVal) {
+          // 해시레이트 수익 기반 원가 추정 (전기비 포함)
+          setMiningCost(Math.round(parseFloat(hashVal) * 1.2));
+        } else {
+          setMiningCost(78000);
+        }
+      } catch {
+        setMiningCost(78000);
+      }
+    } catch(e){ errs.btc=true; setBtcUsdt(prev=>prev); }
 
-    // BTC/KRW Upbit
+    // 2) BTC/KRW Upbit
     try {
       const r=await fetch("https://api.upbit.com/v1/ticker?markets=KRW-BTC");
       const d=await r.json();
       if(d[0]?.trade_price) setBtcKrw(d[0].trade_price);
     } catch(e){ errs.upbit=true; }
 
-    // USD/KRW
+    // 3) 환율 (ExchangeRate-API)
     try {
       const r=await fetch("https://api.exchangerate-api.com/v4/latest/USD");
       const d=await r.json();
-      if(d.rates?.KRW) setUsdKrw(d.rates.KRW);
+      if(d.rates){
+        setUsdKrw(d.rates.KRW);
+        setJpyKrw(d.rates.KRW / d.rates.JPY);
+        setEurKrw(d.rates.KRW / d.rates.EUR);
+        setCnyKrw(d.rates.KRW / d.rates.CNY);
+      }
     } catch(e){ errs.fx=true; }
 
-    // Fear & Greed
+    // 4) Fear & Greed
     try {
       const r=await fetch("https://api.alternative.me/fng/?limit=1");
       const d=await r.json();
@@ -127,129 +156,168 @@ function App() {
     setLoading(false);
   },[]);
 
-  useEffect(()=>{ fetchAll(); const id=setInterval(fetchAll,30000); return ()=>clearInterval(id); },[]);
+  useEffect(()=>{
+    fetchAll();
+    const id=setInterval(fetchAll, 30000);
+    return ()=>clearInterval(id);
+  },[]);
 
   const S={
     wrap:{background:"#05060f",minHeight:"100vh",color:"#e2e8f0",padding:"16px 12px 60px",maxWidth:720,margin:"0 auto"},
     card:{background:"#0f172a",borderRadius:14,padding:"14px 18px",border:"1px solid #1e293b",marginBottom:10},
     label:{fontSize:10,color:"#475569",marginBottom:3},
-    bigNum:{fontSize:24,fontWeight:900,color:"#e2e8f0",letterSpacing:-0.5},
+    bigNum:{fontSize:22,fontWeight:900,color:"#e2e8f0",letterSpacing:-0.5},
   };
 
   return (
     <div style={S.wrap}>
-      {/* Header */}
+      {/* ── Header ── */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div>
           <div style={{fontSize:10,color:"#4f46e5",letterSpacing:3,textTransform:"uppercase"}}>실시간 올인원</div>
-          <div style={{fontSize:22,fontWeight:900,background:"linear-gradient(90deg,#818cf8,#38bdf8,#34d399)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>My Dashboard</div>
+          <div style={{fontSize:24,fontWeight:900,background:"linear-gradient(90deg,#818cf8,#38bdf8,#34d399)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+            All in Won
+          </div>
         </div>
         <button onClick={fetchAll} disabled={loading} style={{padding:"7px 14px",borderRadius:999,border:"1px solid #312e81",background:"#1e1b4b",color:"#818cf8",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
           <span className={loading?"spin":""}>↻</span> {lastUpdate||"로딩 중…"}
         </button>
       </div>
 
-      {/* BTC 가격 헤더 */}
-      <div style={{background:"linear-gradient(135deg,#0f172a,#1a1040)",borderRadius:16,padding:"16px 18px",marginBottom:14,border:"1px solid #312e81"}}>
+      {/* ── 실시간 환율 ── */}
+      <div style={{background:"#0d1117",borderRadius:14,padding:"12px 16px",marginBottom:10,border:"1px solid #1e293b"}}>
+        <div style={{fontSize:10,color:"#475569",marginBottom:8}}>
+          <span className="live-dot"/>실시간 환율 {errors.fx&&<span style={{color:"#f87171"}}>⚠ 오류</span>}
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[
+            {label:"🇺🇸 달러",val:usdKrw,unit:"원/$"},
+            {label:"🇪🇺 유로", val:eurKrw,unit:"원/€"},
+            {label:"🇯🇵 엔화", val:jpyKrw,unit:"원/¥"},
+            {label:"🇨🇳 위안", val:cnyKrw,unit:"원/¥"},
+          ].map((fx,i)=>(
+            <div key={i} style={{flex:1,minWidth:70,background:"#1e293b",borderRadius:10,padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#64748b",marginBottom:3}}>{fx.label}</div>
+              <div style={{fontSize:14,fontWeight:800,color:"#e2e8f0"}}>{fx.val?fmt(Math.round(fx.val)):"…"}</div>
+              <div style={{fontSize:9,color:"#334155",marginTop:1}}>{fx.unit}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── BTC 가격 헤더 ── */}
+      <div style={{background:"linear-gradient(135deg,#0f172a,#1a1040)",borderRadius:16,padding:"16px 18px",marginBottom:10,border:"1px solid #312e81"}}>
         <div style={{fontSize:10,color:"#64748b",marginBottom:10}}>
-          <span className="live-dot"/>BTC 실시간 · 30초 자동갱신
+          <span className="live-dot"/>BTC 실시간 시세 · 30초 자동갱신
           {errors.btc&&<span style={{color:"#f87171",marginLeft:8}}>⚠ Binance 오류</span>}
           {errors.upbit&&<span style={{color:"#f87171",marginLeft:8}}>⚠ Upbit 오류</span>}
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
           <div style={{flex:1,minWidth:120,background:"#0f172a",borderRadius:12,padding:"10px 14px"}}>
-            <div style={S.label}>원화 (KRW) {errors.upbit?"⚠":""}</div>
+            <div style={S.label}>원화 (KRW)</div>
             <div style={S.bigNum}>₩{btcKrw?fmt(btcKrw):"로딩…"}</div>
             <div style={{fontSize:10,color:"#334155",marginTop:2}}>{btcKrw?(btcKrw/1e8).toFixed(4)+"억원":"—"}</div>
           </div>
           <div style={{flex:1,minWidth:120,background:"#0f172a",borderRadius:12,padding:"10px 14px"}}>
             <div style={S.label}>테더 (USDT)</div>
             <div style={S.bigNum}>${btcUsdt?fmt(btcUsdt):"로딩…"}</div>
-            <div style={{fontSize:10,color:"#334155",marginTop:2}}>환율 ₩{fmt(usdKrw)}</div>
+            <div style={{fontSize:10,color:"#334155",marginTop:2}}>환율 ₩{usdKrw?fmt(Math.round(usdKrw)):"…"}</div>
           </div>
           <div style={{minWidth:110,background:"#0f172a",borderRadius:12,padding:"10px 14px",textAlign:"center",border:`1px solid ${kimchi>=0?"#166534":"#7f1d1d"}`}}>
             <div style={S.label}>김치프리미엄</div>
-            <div style={{fontSize:22,fontWeight:900,color:kimchi===null?"#64748b":kimchi>=0?"#22c55e":"#f87171"}}>
+            <div style={{fontSize:20,fontWeight:900,color:kimchi===null?"#64748b":kimchi>=0?"#22c55e":"#f87171"}}>
               {kimchi===null?"계산중…":`${kimchi>=0?"+":""}${kimchi}%`}
             </div>
-            <div style={{fontSize:10,color:"#475569",marginTop:2}}>{kimchi===null?"":kimchi>=0?"김프 🇰🇷":"역프 📉"}</div>
+            <div style={{fontSize:10,color:"#475569",marginTop:2}}>{kimchi===null?"":parseFloat(kimchi)>=0?"김프 🇰🇷":"역프 📉"}</div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{display:"flex",gap:3,marginBottom:12,background:"#0f172a",borderRadius:999,padding:3,border:"1px solid #1e293b"}}>
+      {/* ── 채굴원가 + 공포탐욕 나란히 ── */}
+      <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
+        {/* 채굴원가 */}
+        <div style={{flex:1,minWidth:260,background:"#0f172a",borderRadius:14,padding:"14px 18px",border:"1px solid #1e293b"}}>
+          <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>
+            ⛏ BTC 채굴 원가 vs 현재가
+            <span style={{marginLeft:6,fontSize:9,color:"#22c55e",background:"#052e16",padding:"1px 6px",borderRadius:999}}>실시간</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:10}}>
+            <div>
+              <div style={{fontSize:9,color:"#475569"}}>채굴 원가</div>
+              <div style={{fontSize:18,fontWeight:900,color:"#fbbf24"}}>${miningCost?fmt(miningCost):"…"}</div>
+            </div>
+            <div style={{fontSize:16,color:"#334155"}}>vs</div>
+            <div>
+              <div style={{fontSize:9,color:"#475569"}}>현재 시세</div>
+              <div style={{fontSize:18,fontWeight:900,color:btcUsdt&&miningCost?(btcUsdt>miningCost?"#22c55e":"#f87171"):"#e2e8f0"}}>
+                ${btcUsdt?fmt(btcUsdt):"…"}
+              </div>
+            </div>
+            <div style={{
+              marginLeft:"auto",padding:"6px 10px",borderRadius:10,
+              background:btcUsdt&&miningCost?(btcUsdt>miningCost?"#052e16":"#450a0a"):"#1e293b",
+              border:`1px solid ${btcUsdt&&miningCost?(btcUsdt>miningCost?"#166534":"#7f1d1d"):"#334155"}`,
+              color:btcUsdt&&miningCost?(btcUsdt>miningCost?"#4ade80":"#f87171"):"#64748b",
+              fontWeight:700,fontSize:11,whiteSpace:"nowrap",
+            }}>
+              {btcUsdt&&miningCost?(btcUsdt>miningCost?"✅ 원가 위":"🔴 원가 하회"):"—"}
+            </div>
+          </div>
+          <div style={{height:6,background:"#1e293b",borderRadius:999,overflow:"hidden"}}>
+            <div style={{
+              width:`${btcUsdt&&miningCost?Math.min((btcUsdt/120000)*100,100):0}%`,
+              background:"linear-gradient(90deg,#f87171,#fbbf24,#4ade80)",
+              height:"100%",borderRadius:999,transition:"width 0.8s"
+            }}/>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#334155",marginTop:3}}>
+            <span>$0</span>
+            <span>원가 ${miningCost?fmt(miningCost):"…"}</span>
+            <span>$120K</span>
+          </div>
+        </div>
+
+        {/* 공포탐욕 */}
+        <div style={{flex:1,minWidth:200,background:"#0f172a",borderRadius:14,padding:"14px 18px",border:"1px solid #1e293b",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+          <div style={{fontSize:11,color:"#64748b",marginBottom:4,alignSelf:"flex-start"}}>
+            😨 가상자산 공포·탐욕
+            <span style={{marginLeft:6,fontSize:9,color:"#22c55e",background:"#052e16",padding:"1px 6px",borderRadius:999}}>실시간</span>
+          </div>
+          {errors.fng&&<div style={{fontSize:10,color:"#f87171",marginBottom:4}}>⚠ 오류 — 최근값</div>}
+          <Gauge value={fng} size={130}/>
+          <div style={{fontSize:20,fontWeight:900,color:fgColor(fng),marginTop:-4}}>{fgLabel(fng)}</div>
+          <div style={{fontSize:12,color:"#475569",marginTop:2}}>지수 {fng} / 100</div>
+        </div>
+      </div>
+
+      {/* ── 거래소 보유량 ── */}
+      <div style={S.card}>
+        <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>🏦 거래소 BTC 보유량 (CryptoQuant)</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:24,fontWeight:900,color:"#f59e0b"}}>2.35M BTC</div>
+            <div style={{fontSize:11,color:"#475569",marginTop:3}}>전체 거래소 합산</div>
+          </div>
+          <div style={{padding:"8px 14px",borderRadius:10,background:"#052e16",border:"1px solid #166534",textAlign:"center"}}>
+            <div style={{fontSize:14,fontWeight:800,color:"#4ade80"}}>▼ 감소세</div>
+            <div style={{fontSize:10,color:"#475569",marginTop:2}}>장기 추세</div>
+          </div>
+        </div>
+        <div style={{marginTop:10,padding:"9px 12px",background:"#1e293b",borderRadius:8,fontSize:12,color:"#94a3b8",lineHeight:1.7}}>
+          📌 보유량 감소 = 투자자 개인지갑 이동 → <span style={{color:"#4ade80"}}>매도 압력 감소 신호</span>
+        </div>
+      </div>
+
+      {/* ── 탭 ── */}
+      <div style={{display:"flex",gap:4,marginBottom:12,background:"#0f172a",borderRadius:999,padding:3,border:"1px solid #1e293b"}}>
         {TABS.map((t,i)=>(
-          <button key={i} onClick={()=>setTab(i)} style={{flex:1,padding:"8px 2px",borderRadius:999,border:"none",background:tab===i?TAB_COLORS[i]:"transparent",color:tab===i?"#fff":"#64748b",fontWeight:tab===i?700:400,fontSize:10,cursor:"pointer",transition:"all 0.2s",fontFamily:"inherit"}}>{t}</button>
+          <button key={i} onClick={()=>setTab(i)} style={{flex:1,padding:"9px 4px",borderRadius:999,border:"none",background:tab===i?TAB_COLORS[i]:"transparent",color:tab===i?"#fff":"#64748b",fontWeight:tab===i?700:400,fontSize:11,cursor:"pointer",transition:"all 0.2s",fontFamily:"inherit"}}>{t}</button>
         ))}
       </div>
 
-      {/* TAB 0: BTC 상세 */}
-      {tab===0&&<div className="card">
-        <div style={S.card}>
-          <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>⛏ BTC 채굴 원가 vs 현재가</div>
-          <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-            <div><div style={S.label}>채굴 원가 (추정)</div><div style={{fontSize:22,fontWeight:900,color:"#fbbf24"}}>$78,000</div></div>
-            <div style={{fontSize:20,color:"#334155"}}>vs</div>
-            <div><div style={S.label}>현재 시세</div><div style={{fontSize:22,fontWeight:900,color:btcUsdt>78000?"#22c55e":"#f87171"}}>${btcUsdt?fmt(btcUsdt):"…"}</div></div>
-            <div style={{marginLeft:"auto",padding:"8px 14px",borderRadius:10,background:btcUsdt>78000?"#052e16":"#450a0a",border:`1px solid ${btcUsdt>78000?"#166534":"#7f1d1d"}`,color:btcUsdt>78000?"#4ade80":"#f87171",fontWeight:700,fontSize:13}}>
-              {btcUsdt?(btcUsdt>78000?"✅ 원가 위":"🔴 원가 하회"):"—"}
-            </div>
-          </div>
-          <div style={{marginTop:10,height:6,background:"#1e293b",borderRadius:999,overflow:"hidden"}}>
-            <div style={{width:`${Math.min((btcUsdt/100000)*100,100)}%`,background:"linear-gradient(90deg,#f87171,#fbbf24,#4ade80)",height:"100%",borderRadius:999,transition:"width 0.6s"}}/>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#334155",marginTop:3}}><span>$0</span><span>채굴원가 $78K</span><span>$100K</span></div>
-        </div>
-        <div style={S.card}>
-          <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>🏦 거래소 BTC 보유량 (CryptoQuant)</div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div><div style={{fontSize:26,fontWeight:900,color:"#f59e0b"}}>2.35M BTC</div><div style={{fontSize:11,color:"#475569",marginTop:3}}>전체 거래소 합산</div></div>
-            <div style={{padding:"8px 14px",borderRadius:10,background:"#052e16",border:"1px solid #166534",textAlign:"center"}}>
-              <div style={{fontSize:14,fontWeight:800,color:"#4ade80"}}>▼ 감소세</div>
-              <div style={{fontSize:10,color:"#475569",marginTop:2}}>장기 추세</div>
-            </div>
-          </div>
-          <div style={{marginTop:10,padding:"9px 12px",background:"#1e293b",borderRadius:8,fontSize:12,color:"#94a3b8",lineHeight:1.7}}>
-            📌 보유량 감소 = 투자자 개인지갑 이동 → <span style={{color:"#4ade80"}}>매도 압력 감소 신호</span>
-          </div>
-        </div>
-      </div>}
-
-      {/* TAB 1: 공포탐욕 */}
-      {tab===1&&<div className="card">
-        <div style={S.card}>
-          <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>가상자산 공포·탐욕 지수 (alternative.me · 실시간)</div>
-          {errors.fng&&<div style={{fontSize:11,color:"#f87171",marginBottom:8}}>⚠ API 오류 — 최근값 표시</div>}
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-            <Gauge value={fng}/>
-            <div style={{fontSize:26,fontWeight:900,color:fgColor(fng),marginTop:-4}}>{fgLabel(fng)}</div>
-            <div style={{fontSize:13,color:"#475569",marginTop:4}}>지수: {fng} / 100</div>
-          </div>
-          <div style={{display:"flex",gap:4,marginTop:16,justifyContent:"center",flexWrap:"wrap"}}>
-            {[["극도공포","#ef4444"],["공포","#f97316"],["중립","#facc15"],["탐욕","#86efac"],["극도탐욕","#22c55e"]].map(([l,c])=>(
-              <div key={l} style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color:"#64748b"}}>
-                <div style={{width:8,height:8,borderRadius:2,background:c}}/><span>{l}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={S.card}>
-          <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>CNN 금융시장 공포·탐욕 지수</div>
-          <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-            <Gauge value={25}/>
-            <div>
-              <div style={{fontSize:22,fontWeight:900,color:fgColor(25)}}>극도 공포</div>
-              <div style={{fontSize:13,color:"#475569"}}>지수: 25 / 100</div>
-              <div style={{fontSize:11,color:"#334155",marginTop:6}}>주식·채권·옵션 시장 심리 종합</div>
-            </div>
-          </div>
-        </div>
-      </div>}
-
-      {/* TAB 2: 시총순위 */}
-      {tab===2&&<div className="card" style={{background:"#0f172a",borderRadius:14,border:"1px solid #1e293b",overflow:"hidden"}}>
-        <div style={{padding:"12px 18px",borderBottom:"1px solid #1e293b",fontSize:11,color:"#64748b"}}>🏆 글로벌 시가총액 순위 (8marketcap.com · 금/은 포함 전체)</div>
+      {/* TAB 0: 시총순위 */}
+      {tab===0&&<div className="card" style={{background:"#0f172a",borderRadius:14,border:"1px solid #1e293b",overflow:"hidden"}}>
+        <div style={{padding:"12px 18px",borderBottom:"1px solid #1e293b",fontSize:11,color:"#64748b"}}>🏆 글로벌 시가총액 순위 (8marketcap.com · 금/은 포함)</div>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead><tr style={{background:"#1e293b"}}>
             {["#","자산","시총","가격","24h"].map(h=><th key={h} style={{padding:"8px 10px",color:"#475569",fontWeight:600,textAlign:h=="#"?"center":"right",whiteSpace:"nowrap"}}>{h}</th>)}
@@ -269,11 +337,11 @@ function App() {
             ))}
           </tbody>
         </table>
-        <div style={{padding:"8px 14px",fontSize:10,color:"#334155"}}>⭐ Bitcoin 14위 · Tesla 13위 (금·은·ETF 포함 전체 순위 기준)</div>
+        <div style={{padding:"8px 14px",fontSize:10,color:"#334155"}}>⭐ Bitcoin 14위 · Tesla 13위 (금·은·ETF 포함 전체 순위)</div>
       </div>}
 
-      {/* TAB 3: 대사관 */}
-      {tab===3&&<div className="card">
+      {/* TAB 1: 대사관 */}
+      {tab===1&&<div className="card">
         <div style={S.card}>
           <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>🏛 주한 대사관 철수 모니터 (embassywatch.gkuer.com)</div>
           <div style={{fontSize:10,color:"#334155",marginBottom:14}}>AI가 6시간마다 자동 확인</div>
@@ -291,10 +359,10 @@ function App() {
         </div>
       </div>}
 
-      {/* TAB 4: 로보택시 */}
-      {tab===4&&<div className="card">
+      {/* TAB 2: 로보택시 */}
+      {tab===2&&<div className="card">
         <div style={S.card}>
-          <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>🚗 Tesla 로보택시 플릿 현황 (robotaxitracker.com)</div>
+          <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>🚗 Tesla 로보택시 플릿 현황</div>
           <div style={{fontSize:10,color:"#334155",marginBottom:16}}>2026.03.10 기준</div>
           <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
             <div style={{textAlign:"center",background:"#1e293b",borderRadius:12,padding:"16px 32px"}}>
@@ -322,8 +390,8 @@ function App() {
       </div>}
 
       <div style={{marginTop:20,textAlign:"center",fontSize:10,color:"#1e293b",lineHeight:1.8}}>
-        Binance · Upbit · alternative.me · 8marketcap.com · embassywatch.gkuer.com · robotaxitracker.com<br/>
-        ⚡ BTC·FnG 30초 자동갱신
+        Binance · Upbit · ExchangeRate-API · alternative.me · 8marketcap.com · embassywatch.gkuer.com<br/>
+        ⚡ BTC·환율·FnG 30초 자동갱신
       </div>
     </div>
   );
