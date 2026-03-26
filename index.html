@@ -12,12 +12,21 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#F7931A"/>
 
-<!-- 아이폰 홈화면 아이콘 -->
+<!-- 아이폰 홈화면 아이콘 — 모든 사이즈 명시 -->
 <link rel="apple-touch-icon" href="icon.png"/>
+<link rel="apple-touch-icon" sizes="57x57"   href="icon-57.png"/>
+<link rel="apple-touch-icon" sizes="60x60"   href="icon-60.png"/>
+<link rel="apple-touch-icon" sizes="72x72"   href="icon-72.png"/>
+<link rel="apple-touch-icon" sizes="76x76"   href="icon-76.png"/>
+<link rel="apple-touch-icon" sizes="114x114" href="icon-114.png"/>
+<link rel="apple-touch-icon" sizes="120x120" href="icon-120.png"/>
+<link rel="apple-touch-icon" sizes="144x144" href="icon-144.png"/>
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png"/>
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png"/>
 <link rel="icon" href="icon.png" type="image/png"/>
 
-<!-- PWA manifest (인라인) -->
-<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiQWxsIGluIFdvbiIsInNob3J0X25hbWUiOiJBbGwgaW4gV29uIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMxQTFBMUEiLCJ0aGVtZV9jb2xvciI6IiNGNzkzMUEifQ=="/>
+<!-- PWA manifest (외부 파일) -->
+<link rel="manifest" href="manifest.json"/>
 
 <!-- 아이폰 노치/홈바 대응 -->
 <style>
@@ -1350,3 +1359,23 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
+
+{
+  "name": "All in Won",
+  "short_name": "All in Won",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#F7931A",
+  "icons": [
+    { "src": "icon-57.png",  "sizes": "57x57",   "type": "image/png" },
+    { "src": "icon-60.png",  "sizes": "60x60",   "type": "image/png" },
+    { "src": "icon-72.png",  "sizes": "72x72",   "type": "image/png" },
+    { "src": "icon-76.png",  "sizes": "76x76",   "type": "image/png" },
+    { "src": "icon-114.png", "sizes": "114x114", "type": "image/png" },
+    { "src": "icon-120.png", "sizes": "120x120", "type": "image/png" },
+    { "src": "icon-144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "icon-152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
