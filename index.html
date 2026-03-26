@@ -755,6 +755,7 @@ function DxyCard() {
     </div>
   );
 }
+function Gauge({value=50, size=140}) {
   const r=48,cx=65,cy=68;
   const segs=["#ef4444","#f97316","#facc15","#86efac","#22c55e"];
   const pt=(pct)=>({x:cx+r*Math.cos(Math.PI*(1-pct)),y:cy-r*Math.sin(Math.PI*(1-pct))});
