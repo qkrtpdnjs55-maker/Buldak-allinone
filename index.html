@@ -139,12 +139,12 @@
   }
 
   .tab-btn {
-    flex: 1; padding: 9px 4px;
+    flex: 1; padding: 9px 2px;
     border-radius: 10px; border: none;
-    font-weight: 700; font-size: 11px;
+    font-weight: 700; font-size: 10px;
     cursor: pointer; transition: all 0.2s;
     font-family: 'Noto Sans KR', sans-serif;
-    letter-spacing: 0.3px;
+    letter-spacing: 0px;
   }
 
   .tab-btn.active {
@@ -291,7 +291,470 @@ const fmtDec = (n, d=2) => n == null ? "—" : Number(n).toLocaleString("ko-KR",
 const fgColor = v => v>=75?"#22c55e":v>=55?"#86efac":v>=45?"#facc15":v>=25?"#f97316":"#ef4444";
 const fgLabel = v => v>=75?"극도 탐욕":v>=55?"탐욕":v>=45?"중립":v>=25?"공포":"극도 공포";
 
-function Gauge({value=50, size=140}) {
+// ── 반감기 탭 ──────────────────────────────────────────
+function HalvingTab({btcUsdt}) {
+  // 다음 반감기: 2028년 4월 예상 (블록 1,050,000)
+  // 현재 블록 높이는 API로 가져옴
+  const [blockHeight, setBlockHeight] = React.useState(null);
+  const [nextHalving, setNextHalving] = React.useState(null);
+  const [dominance, setDominance] = React.useState(null);
+  const O = "#F7931A";
+
+  React.useEffect(()=>{
+    // 현재 블록 높이
+    fetch("https://blockchain.info/q/getblockcount")
+      .then(r=>r.text()).then(h=>{
+        const height = parseInt(h);
+        setBlockHeight(height);
+        const halvingBlock = Math.ceil(height / 210000) * 210000;
+        const blocksLeft = halvingBlock - height;
+        const secondsLeft = blocksLeft * 10 * 60;
+        const halvingDate = new Date(Date.now() + secondsLeft * 1000);
+        setNextHalving({ block: halvingBlock, blocksLeft, date: halvingDate });
+      }).catch(()=>{
+        // 폴백: 예상값
+        const halvingDate = new Date("2028-04-20");
+        const blocksLeft = Math.round((halvingDate - Date.now()) / (10*60*1000));
+        setNextHalving({ block: 1050000, blocksLeft, date: halvingDate });
+      });
+
+    // BTC 도미넌스
+    fetch("https://api.coingecko.com/api/v3/global")
+      .then(r=>r.json())
+      .then(d=>setDominance(d?.data?.market_cap_percentage?.btc?.toFixed(1)))
+      .catch(()=>{});
+  },[]);
+
+  const halvingNum = blockHeight ? Math.floor(blockHeight / 210000) + 1 : 5;
+  const daysLeft = nextHalving ? Math.floor((nextHalving.date - Date.now()) / (1000*60*60*24)) : null;
+  const progress = blockHeight ? ((blockHeight % 210000) / 210000) * 100 : 0;
+
+  // 과거 반감기 데이터
+  const pastHalvings = [
+    {n:1, date:"2012.11.28", reward:"50→25 BTC", priceAfter:"$1,000+"},
+    {n:2, date:"2016.07.09", reward:"25→12.5 BTC", priceAfter:"$20,000+"},
+    {n:3, date:"2020.05.11", reward:"12.5→6.25 BTC", priceAfter:"$69,000+"},
+    {n:4, date:"2024.04.19", reward:"6.25→3.125 BTC", priceAfter:"현재 진행중"},
+  ];
+
+  return (
+    <div className="card">
+      {/* 메인 카운트다운 */}
+      <div className="btc-card" style={{textAlign:"center",padding:"24px 20px",background:"linear-gradient(135deg,#0D0D0D,#141008)",border:`1px solid rgba(247,147,26,0.3)`}}>
+        <div style={{fontSize:11,color:"rgba(247,147,26,0.6)",letterSpacing:3,marginBottom:8}}>NEXT HALVING #{halvingNum}</div>
+        <div style={{fontSize:11,color:"#6B7280",marginBottom:4}}>블록 {nextHalving?.block?.toLocaleString()} 예정</div>
+        <div style={{display:"flex",justifyContent:"center",gap:12,margin:"16px 0"}}>
+          {[
+            {v: daysLeft !== null ? Math.floor(daysLeft/365) : "--", l:"년"},
+            {v: daysLeft !== null ? Math.floor((daysLeft%365)/30) : "--", l:"개월"},
+            {v: daysLeft !== null ? daysLeft%30 : "--", l:"일"},
+          ].map((item,i)=>(
+            <div key={i} style={{textAlign:"center"}}>
+              <div className="number-mono" style={{fontSize:40,fontWeight:700,color:O,lineHeight:1}}>{item.v}</div>
+              <div style={{fontSize:10,color:"#6B7280",marginTop:4}}>{item.l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:"#6B7280",marginBottom:12}}>
+          예상일 {nextHalving?.date?.toLocaleDateString("ko-KR")} · 남은 블록 {nextHalving?.blocksLeft?.toLocaleString()}
+        </div>
+        {/* 진행 바 */}
+        <div style={{background:"#1A1A1A",borderRadius:999,height:8,overflow:"hidden",border:"1px solid #222"}}>
+          <div style={{width:`${progress}%`,height:"100%",borderRadius:999,background:`linear-gradient(90deg,${O}88,${O})`,transition:"width 1s ease"}}/>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#6B7280",marginTop:4}}>
+          <span>블록 {blockHeight ? (Math.floor(blockHeight/210000)*210000).toLocaleString() : "..."}</span>
+          <span>{progress.toFixed(1)}% 진행</span>
+          <span>블록 {nextHalving?.block?.toLocaleString() || "..."}</span>
+        </div>
+      </div>
+
+      {/* 현재 채굴 보상 + 도미넌스 */}
+      <div style={{display:"flex",gap:10,marginBottom:10}}>
+        <div className="btc-card" style={{flex:1,marginBottom:0,textAlign:"center"}}>
+          <div style={{fontSize:10,color:"#9A8F86",marginBottom:6}}>현재 채굴 보상</div>
+          <div className="number-mono" style={{fontSize:22,fontWeight:700,color:O}}>3.125</div>
+          <div style={{fontSize:10,color:"#6B7280",marginTop:2}}>BTC / 블록</div>
+          <div style={{fontSize:10,color:"#22c55e",marginTop:4}}>
+            ≈ ${btcUsdt ? (btcUsdt*3.125).toLocaleString("ko-KR",{maximumFractionDigits:0}) : "..."}
+          </div>
+        </div>
+        <div className="btc-card" style={{flex:1,marginBottom:0,textAlign:"center"}}>
+          <div style={{fontSize:10,color:"#9A8F86",marginBottom:6}}>BTC 도미넌스</div>
+          <div className="number-mono" style={{fontSize:22,fontWeight:700,color:O}}>{dominance ? `${dominance}%` : "..."}</div>
+          <div style={{fontSize:10,color:"#6B7280",marginTop:2}}>전체 코인 시총 비중</div>
+          <div style={{fontSize:10,color: dominance>50?"#22c55e":"#f59e0b",marginTop:4}}>
+            {dominance > 50 ? "비트코인 강세장" : dominance > 40 ? "알트코인 분산" : "알트시즌"}
+          </div>
+        </div>
+      </div>
+
+      {/* 과거 반감기 */}
+      <div className="btc-card">
+        <div style={{fontSize:11,color:"#A89F96",marginBottom:12}}>📈 과거 반감기 & 그 후</div>
+        {pastHalvings.map((h,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+            padding:"10px 12px",borderRadius:8,background:i===3?"rgba(247,147,26,0.05)":"transparent",
+            border:i===3?`1px solid rgba(247,147,26,0.15)`:"1px solid transparent",marginBottom:6}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:i===3?O:"#C0B8B0"}}>#{h.n}차 반감기</div>
+              <div style={{fontSize:10,color:"#6B7280",marginTop:2}}>{h.date} · {h.reward}</div>
+            </div>
+            <div style={{fontSize:11,fontWeight:700,color:i===3?"#f59e0b":"#22c55e",textAlign:"right"}}>
+              {h.priceAfter}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── 포트폴리오 탭 ────────────────────────────────────────
+function PortfolioTab({btcUsdt, btcKrw, usdKrw}) {
+  const [holdings, setHoldings] = React.useState([
+    {id:1, coin:"BTC", qty:"", avgPrice:""},
+  ]);
+  const O = "#F7931A";
+  const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("ko-KR",{maximumFractionDigits:0});
+  const fmtDec = (n,d=2) => n == null ? "—" : Number(n).toLocaleString("ko-KR",{minimumFractionDigits:d,maximumFractionDigits:d});
+
+  const prices = { BTC: btcUsdt };
+
+  const addRow = () => setHoldings(prev => [...prev, {id:Date.now(), coin:"BTC", qty:"", avgPrice:""}]);
+  const removeRow = (id) => setHoldings(prev => prev.filter(h=>h.id!==id));
+  const updateRow = (id, field, val) => setHoldings(prev => prev.map(h=>h.id===id?{...h,[field]:val}:h));
+
+  const rows = holdings.map(h => {
+    const price = prices[h.coin] || 0;
+    const qty = parseFloat(h.qty) || 0;
+    const avg = parseFloat(h.avgPrice) || 0;
+    const currentVal = price * qty;
+    const investVal  = avg * qty;
+    const pnl        = currentVal - investVal;
+    const pnlPct     = investVal > 0 ? (pnl/investVal*100) : 0;
+    const currentKrw = usdKrw ? currentVal * usdKrw : null;
+    return {...h, price, qty, avg, currentVal, investVal, pnl, pnlPct, currentKrw};
+  });
+
+  const totalCurrentKrw = rows.reduce((s,r)=>s+(r.currentKrw||0),0);
+  const totalInvestKrw  = rows.reduce((s,r)=>s+(r.investVal*(usdKrw||0)),0);
+  const totalPnlKrw     = totalCurrentKrw - totalInvestKrw;
+  const totalPnlPct     = totalInvestKrw > 0 ? (totalPnlKrw/totalInvestKrw*100) : 0;
+
+  return (
+    <div className="card">
+      {/* 총 평가 요약 */}
+      <div className="btc-card" style={{background:"linear-gradient(135deg,#0D0D0D,#141008)",border:`1px solid rgba(247,147,26,0.25)`,marginBottom:10}}>
+        <div style={{fontSize:11,color:"rgba(247,147,26,0.6)",letterSpacing:2,marginBottom:8}}>💼 총 평가금액</div>
+        <div className="number-mono" style={{fontSize:32,fontWeight:700,color:"#F0EDE8",marginBottom:4}}>
+          ₩{fmt(Math.round(totalCurrentKrw))}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{
+            fontSize:13,fontWeight:700,
+            color:totalPnlKrw>=0?"#22c55e":"#ef4444",
+            background:totalPnlKrw>=0?"rgba(34,197,94,0.08)":"rgba(239,68,68,0.08)",
+            border:`1px solid ${totalPnlKrw>=0?"rgba(34,197,94,0.2)":"rgba(239,68,68,0.2)"}`,
+            padding:"3px 10px",borderRadius:6,
+          }}>
+            {totalPnlKrw>=0?"+":""}{fmt(Math.round(totalPnlKrw))}원 ({totalPnlPct>=0?"+":""}{fmtDec(totalPnlPct)}%)
+          </div>
+          <div style={{fontSize:10,color:"#6B7280"}}>총 투자금 ₩{fmt(Math.round(totalInvestKrw))}</div>
+        </div>
+      </div>
+
+      {/* 코인별 입력 */}
+      <div className="btc-card">
+        <div style={{fontSize:11,color:"#A89F96",marginBottom:12}}>보유 코인 입력</div>
+        {rows.map((row,i)=>(
+          <div key={row.id} style={{marginBottom:14,padding:"12px",background:"#0D0D0D",borderRadius:10,border:"1px solid #1A1A1A"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:700,color:O}}>₿ BTC</div>
+              {rows.length>1 && (
+                <button onClick={()=>removeRow(row.id)} style={{background:"transparent",border:"none",color:"#ef4444",cursor:"pointer",fontSize:14}}>✕</button>
+              )}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:"#6B7280",marginBottom:3}}>보유 수량 (BTC)</div>
+                <input
+                  type="number" placeholder="예: 0.5"
+                  value={row.qty}
+                  onChange={e=>updateRow(row.id,"qty",e.target.value)}
+                  style={{width:"100%",background:"#1A1A1A",border:"1px solid #2A2A2A",borderRadius:6,
+                    padding:"7px 10px",color:"#F0EDE8",fontSize:12,fontFamily:"'Space Mono',monospace",
+                    outline:"none"}}
+                />
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:"#6B7280",marginBottom:3}}>평균 구매가 ($)</div>
+                <input
+                  type="number" placeholder="예: 50000"
+                  value={row.avgPrice}
+                  onChange={e=>updateRow(row.id,"avgPrice",e.target.value)}
+                  style={{width:"100%",background:"#1A1A1A",border:"1px solid #2A2A2A",borderRadius:6,
+                    padding:"7px 10px",color:"#F0EDE8",fontSize:12,fontFamily:"'Space Mono',monospace",
+                    outline:"none"}}
+                />
+              </div>
+            </div>
+            {/* 결과 */}
+            {row.qty > 0 && row.price > 0 && (
+              <div style={{marginTop:10,padding:"8px 10px",background:"#111",borderRadius:6,border:"1px solid #1E1E1E"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <span style={{fontSize:10,color:"#6B7280"}}>현재가</span>
+                  <span className="number-mono" style={{fontSize:10,color:"#F0EDE8"}}>${row.price?.toLocaleString("ko-KR",{maximumFractionDigits:0})}</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <span style={{fontSize:10,color:"#6B7280"}}>평가금액</span>
+                  <span className="number-mono" style={{fontSize:10,color:O}}>₩{fmt(Math.round(row.currentKrw))}</span>
+                </div>
+                {row.avg > 0 && (
+                  <div style={{display:"flex",justifyContent:"space-between"}}>
+                    <span style={{fontSize:10,color:"#6B7280"}}>수익률</span>
+                    <span className="number-mono" style={{fontSize:11,fontWeight:700,color:row.pnl>=0?"#22c55e":"#ef4444"}}>
+                      {row.pnlPct>=0?"+":""}{fmtDec(row.pnlPct)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+        <button onClick={addRow} style={{
+          width:"100%",padding:"9px",borderRadius:8,
+          border:`1px dashed rgba(247,147,26,0.3)`,
+          background:"transparent",color:"rgba(247,147,26,0.5)",
+          cursor:"pointer",fontSize:12,fontFamily:"'Noto Sans KR',sans-serif"
+        }}>+ 코인 추가</button>
+      </div>
+
+      {/* BTC 목표가 계산기 */}
+      <BtcTargetCalc btcUsdt={btcUsdt} usdKrw={usdKrw}/>
+    </div>
+  );
+}
+
+function BtcTargetCalc({btcUsdt, usdKrw}) {
+  const [target, setTarget] = React.useState("");
+  const O = "#F7931A";
+  const targets = [50000, 75000, 100000, 150000, 200000];
+  return (
+    <div className="btc-card">
+      <div style={{fontSize:11,color:"#A89F96",marginBottom:12}}>🎯 BTC 목표가 달성 시 수익</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+        {targets.map(t=>(
+          <button key={t} onClick={()=>setTarget(t)}
+            style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${target==t?O:"#2A2A2A"}`,
+              background:target==t?"rgba(247,147,26,0.1)":"transparent",
+              color:target==t?O:"#6B7280",fontSize:10,cursor:"pointer",
+              fontFamily:"'Space Mono',monospace"}}>
+            ${(t/1000).toFixed(0)}K
+          </button>
+        ))}
+      </div>
+      <input type="number" placeholder="직접 입력 ($)"
+        value={target}
+        onChange={e=>setTarget(e.target.value)}
+        style={{width:"100%",background:"#1A1A1A",border:"1px solid #2A2A2A",borderRadius:6,
+          padding:"7px 10px",color:"#F0EDE8",fontSize:12,marginBottom:10,
+          fontFamily:"'Space Mono',monospace",outline:"none"}}
+      />
+      {target > 0 && btcUsdt && (
+        <div style={{padding:"10px 12px",background:"#0D0D0D",borderRadius:8,border:`1px solid rgba(247,147,26,0.15)`}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{fontSize:10,color:"#6B7280"}}>현재가 → 목표가</span>
+            <span className="number-mono" style={{fontSize:11,color:"#F0EDE8"}}>
+              ${btcUsdt.toLocaleString("ko-KR",{maximumFractionDigits:0})} → ${Number(target).toLocaleString("ko-KR",{maximumFractionDigits:0})}
+            </span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{fontSize:10,color:"#6B7280"}}>상승 여력</span>
+            <span className="number-mono" style={{fontSize:13,fontWeight:700,color:target>btcUsdt?"#22c55e":"#ef4444"}}>
+              {target>btcUsdt?"+":""}{((target-btcUsdt)/btcUsdt*100).toFixed(1)}%
+            </span>
+          </div>
+          {usdKrw && (
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{fontSize:10,color:"#6B7280"}}>목표 원화가</span>
+              <span className="number-mono" style={{fontSize:11,color:O}}>
+                ₩{(target*usdKrw).toLocaleString("ko-KR",{maximumFractionDigits:0})}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 글로벌 탭 ────────────────────────────────────────────
+function GlobalTab() {
+  const [stocks, setStocks] = React.useState({});
+  const [fomc, setFomc] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const O = "#F7931A";
+  const WORKER = "https://yahoo-proxy.tpdnjs0161.workers.dev";
+
+  const stockList = [
+    {sym:"^GSPC",  name:"S&P 500",  flag:"🇺🇸"},
+    {sym:"^IXIC",  name:"나스닥",   flag:"🇺🇸"},
+    {sym:"^DJI",   name:"다우존스", flag:"🇺🇸"},
+    {sym:"^KS11",  name:"코스피",   flag:"🇰🇷"},
+    {sym:"^N225",  name:"닛케이",   flag:"🇯🇵"},
+    {sym:"GC=F",   name:"금",       flag:"🥇"},
+    {sym:"CL=F",   name:"WTI 원유", flag:"🛢️"},
+  ];
+
+  // 다음 FOMC 일정 (하드코딩 — 연도별 업데이트)
+  const fomcDates = [
+    new Date("2026-04-29"), new Date("2026-06-17"),
+    new Date("2026-07-29"), new Date("2026-09-16"),
+    new Date("2026-11-04"), new Date("2026-12-16"),
+  ];
+  const nextFomc = fomcDates.find(d => d > new Date());
+  const fomcDays = nextFomc ? Math.ceil((nextFomc - Date.now())/(1000*60*60*24)) : null;
+
+  React.useEffect(()=>{
+    setLoading(true);
+    Promise.all(
+      stockList.map(s =>
+        fetch(`${WORKER}/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=2d`)}`, {signal:AbortSignal.timeout(5000)})
+          .then(r=>r.json())
+          .then(d=>{
+            const meta = d?.chart?.result?.[0]?.meta;
+            const prev = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+            const prevClose = prev?.[prev.length-2];
+            const curr = meta?.regularMarketPrice;
+            const chg  = prevClose && curr ? ((curr-prevClose)/prevClose*100) : null;
+            return {sym:s.sym, price:curr, change:chg};
+          })
+          .catch(()=>({sym:s.sym, price:null, change:null}))
+      )
+    ).then(results=>{
+      const map = {};
+      results.forEach(r=>{ map[r.sym]=r; });
+      setStocks(map);
+      setLoading(false);
+    });
+  },[]);
+
+  const fmtPrice = (v, sym) => {
+    if(v==null) return "—";
+    if(sym==="^KS11") return v.toLocaleString("ko-KR",{maximumFractionDigits:0});
+    return v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  };
+
+  return (
+    <div className="card">
+      {/* FOMC 카운트다운 */}
+      <div className="btc-card" style={{background:"linear-gradient(135deg,#0D0D0D,#0D1018)",border:"1px solid rgba(100,150,255,0.2)",marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:10,color:"rgba(100,150,255,0.7)",letterSpacing:2,marginBottom:4}}>🏛 다음 FOMC</div>
+            <div className="number-mono" style={{fontSize:22,fontWeight:700,color:"#E8EDF5"}}>
+              D-{fomcDays !== null ? fomcDays : "?"}
+            </div>
+            <div style={{fontSize:10,color:"#6B7280",marginTop:3}}>
+              {nextFomc ? nextFomc.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric"}) : "—"}
+            </div>
+          </div>
+          <div style={{textAlign:"center",padding:"12px 16px",background:"rgba(100,150,255,0.06)",borderRadius:10,border:"1px solid rgba(100,150,255,0.15)"}}>
+            <div style={{fontSize:9,color:"rgba(100,150,255,0.5)",letterSpacing:1,marginBottom:4}}>현재 기준금리</div>
+            <div className="number-mono" style={{fontSize:20,fontWeight:700,color:"#8BA4FF"}}>4.25~4.50%</div>
+            <div style={{fontSize:9,color:"#6B7280",marginTop:2}}>Fed Funds Rate</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 글로벌 증시 */}
+      <div className="btc-card">
+        <div style={{fontSize:11,color:"#A89F96",marginBottom:10}}>
+          📊 글로벌 증시 · 원자재
+          {loading && <span style={{marginLeft:8,color:"rgba(247,147,26,0.5)",fontSize:9}}>로딩중...</span>}
+        </div>
+        {stockList.map((s,i)=>{
+          const d = stocks[s.sym];
+          const chg = d?.change;
+          const up = chg >= 0;
+          return (
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+              padding:"9px 10px",borderRadius:8,marginBottom:4,
+              background:i%2===0?"#0D0D0D":"transparent"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:14}}>{s.flag}</span>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600,color:"#E0D8D0"}}>{s.name}</div>
+                  <div style={{fontSize:9,color:"#6B7280",fontFamily:"'Space Mono',monospace"}}>{s.sym}</div>
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div className="number-mono" style={{fontSize:13,fontWeight:700,color:"#F0EDE8"}}>
+                  {fmtPrice(d?.price, s.sym)}
+                </div>
+                <div className="number-mono" style={{fontSize:10,fontWeight:700,color:chg==null?"#6B7280":up?"#22c55e":"#ef4444"}}>
+                  {chg==null?"—":`${up?"+":""}${chg.toFixed(2)}%`}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div style={{marginTop:6,fontSize:9,color:"#2A3040",textAlign:"right"}}>Yahoo Finance · 실시간</div>
+      </div>
+
+      {/* 공포탐욕 + 달러인덱스 */}
+      <DxyCard/>
+    </div>
+  );
+}
+
+function DxyCard() {
+  const [dxy, setDxy] = React.useState(null);
+  const WORKER = "https://yahoo-proxy.tpdnjs0161.workers.dev";
+
+  React.useEffect(()=>{
+    fetch(`${WORKER}/?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?interval=1d&range=2d")}`, {signal:AbortSignal.timeout(5000)})
+      .then(r=>r.json())
+      .then(d=>{
+        const meta = d?.chart?.result?.[0]?.meta;
+        const closes = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+        const prev = closes?.[closes.length-2];
+        const curr = meta?.regularMarketPrice;
+        const chg = prev && curr ? ((curr-prev)/prev*100) : null;
+        setDxy({price:curr, change:chg});
+      }).catch(()=>{});
+  },[]);
+
+  const O = "#F7931A";
+  return (
+    <div className="btc-card">
+      <div style={{fontSize:11,color:"#A89F96",marginBottom:10}}>💵 달러 인덱스 (DXY)</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div className="number-mono" style={{fontSize:26,fontWeight:700,color:"#F0EDE8"}}>
+            {dxy?.price?.toFixed(2) || "—"}
+          </div>
+          <div style={{fontSize:10,color:"#6B7280",marginTop:2}}>주요 6개 통화 대비 달러 강도</div>
+        </div>
+        <div style={{
+          padding:"8px 16px",borderRadius:10,
+          background: dxy?.change==null?"#111":dxy.change>=0?"rgba(239,68,68,0.08)":"rgba(34,197,94,0.08)",
+          border:`1px solid ${dxy?.change==null?"#222":dxy.change>=0?"rgba(239,68,68,0.2)":"rgba(34,197,94,0.2)"}`,
+          textAlign:"center"
+        }}>
+          <div className="number-mono" style={{fontSize:16,fontWeight:700,
+            color:dxy?.change==null?"#6B7280":dxy.change>=0?"#ef4444":"#22c55e"}}>
+            {dxy?.change==null?"—":`${dxy.change>=0?"+":""}${dxy.change.toFixed(2)}%`}
+          </div>
+          <div style={{fontSize:9,color:"#6B7280",marginTop:2}}>
+            {dxy?.change==null?"":dxy.change>=0?"달러 강세 → BTC ↓":"달러 약세 → BTC ↑"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
   const r=48,cx=65,cy=68;
   const segs=["#ef4444","#f97316","#facc15","#86efac","#22c55e"];
   const pt=(pct)=>({x:cx+r*Math.cos(Math.PI*(1-pct)),y:cy-r*Math.sin(Math.PI*(1-pct))});
@@ -308,7 +771,7 @@ function Gauge({value=50, size=140}) {
   );
 }
 
-const TABS = ["🏆 시총순위", "🏛 대사관", "🚗 로보택시"];
+const TABS = ["🏆 시총순위", "🏛 대사관", "🚗 로보택시", "⛏ 반감기", "💼 포트폴리오", "🌍 글로벌"];
 
 const MCAP_DATA=[
   {rank:1, name:"Gold",      sym:"GOLD", cap:"$35.98T",p:"$5,175", ch:"-0.07%",up:false},
@@ -1316,7 +1779,20 @@ function App() {
         </div>
       )}
 
-      {/* Footer */}
+      {/* TAB 3: 반감기 */}
+      {tab===3 && (
+        <HalvingTab btcUsdt={btcUsdt}/>
+      )}
+
+      {/* TAB 4: 포트폴리오 */}
+      {tab===4 && (
+        <PortfolioTab btcUsdt={btcUsdt} btcKrw={btcKrw} usdKrw={usdKrw}/>
+      )}
+
+      {/* TAB 5: 글로벌 */}
+      {tab===5 && (
+        <GlobalTab/>
+      )}
       <div style={{marginTop:24,textAlign:"center",fontSize:9,color:"#6B7280",lineHeight:2,letterSpacing:0.5}}>
         Binance · Upbit · Yahoo Finance · alternative.me · 8marketcap.com<br/>
         ⚡ BTC·환율·FnG 30초 자동갱신
