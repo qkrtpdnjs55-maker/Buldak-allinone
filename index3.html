@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>All in Won</title>
+
+<!-- ── PWA / 아이폰 홈화면 바로가기 ── -->
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="All in Won"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#F7931A"/>
+
+<!-- 아이폰 홈화면 아이콘 -->
+<link rel="apple-touch-icon" href="icon.png"/>
+<link rel="icon" href="icon.png" type="image/png"/>
+
+<!-- PWA manifest (인라인) -->
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiQWxsIGluIFdvbiIsInNob3J0X25hbWUiOiJBbGwgaW4gV29uIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMxQTFBMUEiLCJ0aGVtZV9jb2xvciI6IiNGNzkzMUEifQ=="/>
+
+<!-- 아이폰 노치/홈바 대응 -->
+<style>
+  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --btc-orange: #F7931A;
+    --btc-orange-bright: #FF9E2C;
+    --btc-orange-glow: rgba(247,147,26,0.18);
+    --btc-orange-dim: rgba(247,147,26,0.08);
+    --btc-amber: #FFB347;
+    --bg-black: #000000;
+    --bg-dark: #0A0A0A;
+    --bg-card: #111111;
+    --bg-inner: #181818;
+    --border: rgba(247,147,26,0.15);
+    --border-bright: rgba(247,147,26,0.35);
+    --text-primary: #F5F0EB;
+    --text-secondary: #8A7F75;
+    --text-muted: #3D3730;
+    --green: #22c55e;
+    --red: #ef4444;
+  }
+
+  body {
+    background: var(--bg-black);
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: default;
+  }
+
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(0.85)} }
+  @keyframes fadein { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes glow-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(247,147,26,0); }
+    50% { box-shadow: 0 0 16px 2px rgba(247,147,26,0.18); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .spin { animation: spin 1s linear infinite; display:inline-block; }
+  .card { animation: fadein 0.4s ease; }
+
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--btc-orange);
+    animation: pulse 2s infinite;
+    display: inline-block; margin-right: 6px;
+    box-shadow: 0 0 6px var(--btc-orange);
+  }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: var(--bg-black); }
+  ::-webkit-scrollbar-thumb { background: var(--btc-orange); border-radius: 2px; }
+
+  .btc-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .btc-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--btc-orange), transparent);
+    opacity: 0.5;
+  }
+
+  .btc-card:hover {
+    border-color: var(--border-bright);
+  }
+
+  .number-mono {
+    font-family: 'Space Mono', monospace;
+  }
+
+  .orange-text {
+    color: var(--btc-orange);
+  }
+
+  .gradient-text {
+    background: linear-gradient(90deg, var(--btc-orange), var(--btc-amber));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .shimmer-text {
+    background: linear-gradient(90deg,
+      var(--btc-orange) 0%,
+      var(--btc-amber) 30%,
+      #fff8f0 50%,
+      var(--btc-amber) 70%,
+      var(--btc-orange) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+  }
+
+  .tab-btn {
+    flex: 1; padding: 9px 4px;
+    border-radius: 10px; border: none;
+    font-weight: 700; font-size: 11px;
+    cursor: pointer; transition: all 0.2s;
+    font-family: 'Noto Sans KR', sans-serif;
+    letter-spacing: 0.3px;
+  }
+
+  .tab-btn.active {
+    background: var(--btc-orange);
+    color: #000;
+    box-shadow: 0 0 12px rgba(247,147,26,0.4);
+  }
+
+  .tab-btn.inactive {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+
+  .tab-btn.inactive:hover {
+    color: var(--btc-orange);
+    background: var(--btc-orange-dim);
+  }
+
+  .fx-chip {
+    flex: 1; min-width: 70px;
+    background: var(--bg-inner);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 10px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+
+  .fx-chip:hover { border-color: var(--border-bright); }
+
+  .btc-hero {
+    background: linear-gradient(135deg, #0D0D0D, #141008);
+    border: 1px solid var(--border-bright);
+    border-radius: 18px;
+    padding: 20px 20px;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+    animation: glow-pulse 4s ease-in-out infinite;
+  }
+
+  .btc-hero::after {
+    content: '₿';
+    position: absolute;
+    right: -10px; top: -20px;
+    font-size: 120px;
+    color: rgba(247,147,26,0.04);
+    font-weight: 900;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .mini-card {
+    background: #0A0A0A;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 14px;
+  }
+
+  .tag-live {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 9px;
+    color: var(--btc-orange);
+    background: rgba(247,147,26,0.1);
+    border: 1px solid rgba(247,147,26,0.2);
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .progress-track {
+    height: 6px;
+    background: #1A1A1A;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid #222;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, var(--btc-orange), #22c55e);
+    transition: width 0.8s ease;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: #0D0D0D; }
+  th { padding: 9px 10px; color: var(--text-secondary); font-weight: 600;
+       text-align: right; white-space: nowrap; font-size: 11px; }
+  th:first-child { text-align: center; }
+  td { padding: 9px 10px; border-bottom: 1px solid #161616; }
+  td:first-child { text-align: center; }
+  td:not(:first-child):not(:nth-child(2)) { text-align: right; }
+  tr:last-child td { border-bottom: none; }
+
+  .hl-row { background: rgba(247,147,26,0.04) !important; }
+  .hl-row td { border-bottom: 1px solid rgba(247,147,26,0.08) !important; }
+
+  .embassy-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 14px; border-radius: 12px;
+    background: var(--bg-inner);
+    border: 1px solid #1D1D1D;
+    margin-bottom: 8px;
+    transition: border-color 0.2s;
+  }
+  .embassy-row:hover { border-color: var(--border); }
+
+  .robotaxi-bar {
+    background: #141414;
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+    border: 1px solid #1E1E1E;
+  }
+
+  .refresh-btn {
+    padding: 7px 14px; border-radius: 10px;
+    border: 1px solid var(--border-bright);
+    background: rgba(247,147,26,0.06);
+    color: var(--btc-orange);
+    font-size: 11px; cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 700;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+  .refresh-btn:hover {
+    background: rgba(247,147,26,0.12);
+    box-shadow: 0 0 10px rgba(247,147,26,0.2);
+  }
+  .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("ko-KR", {maximumFractionDigits:0});
+const fmtDec = (n, d=2) => n == null ? "—" : Number(n).toLocaleString("ko-KR", {minimumFractionDigits:d, maximumFractionDigits:d});
+const fgColor = v => v>=75?"#22c55e":v>=55?"#86efac":v>=45?"#facc15":v>=25?"#f97316":"#ef4444";
+const fgLabel = v => v>=75?"극도 탐욕":v>=55?"탐욕":v>=45?"중립":v>=25?"공포":"극도 공포";
+
+function Gauge({value=50, size=140}) {
+  const r=48,cx=65,cy=68;
+  const segs=["#ef4444","#f97316","#facc15","#86efac","#22c55e"];
+  const pt=(pct)=>({x:cx+r*Math.cos(Math.PI*(1-pct)),y:cy-r*Math.sin(Math.PI*(1-pct))});
+  const arc=(s,e)=>{const p1=pt(s),p2=pt(e);return `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 1 ${p2.x} ${p2.y}`;};
+  const needle=pt(value/100); const col=fgColor(value);
+  return (
+    <svg width={size} height={size*0.65} viewBox="0 0 130 90">
+      {segs.map((c,i)=><path key={i} d={arc(i/5,(i+1)/5)} stroke={c} strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.25}/>)}
+      <path d={arc(0,value/100)} stroke={col} strokeWidth={8} fill="none" strokeLinecap="round"/>
+      <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke={col} strokeWidth={2.5} strokeLinecap="round"/>
+      <circle cx={cx} cy={cy} r={4} fill={col}/>
+      <text x={cx} y={cy+16} textAnchor="middle" fill={col} fontSize={15} fontWeight={800}>{value}</text>
+    </svg>
+  );
+}
+
+const TABS = ["🏆 시총순위", "🏛 대사관", "🚗 로보택시"];
+
+const MCAP_DATA=[
+  {rank:1, name:"Gold",      sym:"GOLD", cap:"$35.98T",p:"$5,175", ch:"-0.07%",up:false},
+  {rank:2, name:"Silver",    sym:"SLVR", cap:"$4.83T", p:"$85.72", ch:"+0.22%",up:true},
+  {rank:3, name:"NVIDIA",    sym:"NVDA", cap:"$4.52T", p:"$186.03",ch:"+0.68%",up:true},
+  {rank:4, name:"Apple",     sym:"AAPL", cap:"$3.83T", p:"$260.81",ch:"-0.01%",up:false},
+  {rank:5, name:"Alphabet",  sym:"GOOG", cap:"$3.73T", p:"$308.42",ch:"+0.49%",up:true},
+  {rank:6, name:"Microsoft", sym:"MSFT", cap:"$3.01T", p:"$404.88",ch:"-0.22%",up:false},
+  {rank:7, name:"Amazon",    sym:"AMZN", cap:"$2.28T", p:"$212.65",ch:"-0.78%",up:false},
+  {rank:8, name:"TSMC",      sym:"TSM",  cap:"$1.84T", p:"$354.56",ch:"+2.15%",up:true},
+  {rank:9, name:"Aramco",    sym:"2222", cap:"$1.75T", p:"$7.24",  ch:"+0.97%",up:true},
+  {rank:10,name:"VTI ETF",   sym:"VTI",  cap:"$1.70T", p:"$264.62",ch:"+0.02%",up:true},
+  {rank:13,name:"⭐ Tesla",  sym:"TSLA", cap:"$1.53T", p:"$407.82",ch:"+2.15%",up:true, hl:true},
+  {rank:14,name:"⭐ Bitcoin",sym:"BTC",  cap:"$1.40T", p:"$69,838",ch:"-0.30%",up:false,hl:true},
+];
+
+const EMBASSY=[
+  {flag:"🇺🇸",name:"미국",  status:"철수 소식 없음",safe:true},
+  {flag:"🇨🇳",name:"중국",  status:"철수 소식 없음",safe:true},
+  {flag:"🇯🇵",name:"일본",  status:"철수 소식 없음",safe:true},
+  {flag:"🇷🇺",name:"러시아",status:"철수 소식 없음",safe:true},
+];
+
+const ROBOTAXI=[
+  {region:"Bay Area (SF)",count:355,note:"안전요원 탑승 감독형",color:"#F7931A"},
+  {region:"Austin, TX",  count:45, note:"무감독 전환 진행 중", color:"#FFB347"},
+  {region:"Austin (완전무감독)",count:8,note:"Level 4 완전 자율",color:"#FFD580"},
+];
+
+function FxChart({sym, label, flag, range, data, loading, tooltip, setTooltip, onRangeChange, onClose}) {
+  const chartRef = React.useRef(null);
+  const [crosshair, setCrosshair] = React.useState(null);
+  const points = data[sym+range] || [];
+  const RANGES = ["1D","5D","1M","6M","1Y","All"];
+
+  // 오렌지 팔레트
+  const O  = "#F7931A";
+  const O2 = "#FFB347";
+
+  // 데이터 파생
+  const validPts  = points.filter(p => p.close != null);
+  const firstClose = validPts[0]?.close;
+  const lastClose  = validPts[validPts.length-1]?.close;
+  const isUp       = lastClose >= (firstClose || lastClose);
+  const lineColor  = isUp ? O : "#ef5350";
+  const lineGlow   = isUp ? "rgba(247,147,26,0.5)" : "rgba(239,83,80,0.4)";
+  const change     = firstClose && lastClose ? lastClose - firstClose : 0;
+  const changePct  = firstClose ? (change / firstClose * 100) : 0;
+
+  // 레이아웃
+  const PAD = { top:12, bottom:40, left:0, right:72 };
+
+  // 가격 범위
+  const prices = validPts.map(p => p.close);
+  const rawMin = prices.length ? Math.min(...prices) : 0;
+  const rawMax = prices.length ? Math.max(...prices) : 1;
+  const pad5   = (rawMax - rawMin) * 0.08 || rawMin * 0.001 || 1;
+  const minV   = rawMin - pad5;
+  const maxV   = rawMax + pad5;
+  const rng    = maxV - minV || 1;
+
+  // 볼륨
+  const vols   = validPts.map(p => p.volume || 0);
+  const maxVol = Math.max(...vols, 1);
+
+  // 좌표 변환
+  const toXpct = (i) => validPts.length < 2 ? 50 : (i / (validPts.length - 1)) * 100;
+  const toYpct = (v) => ((maxV - v) / rng) * 100;
+
+  // 차트 패스
+  const linePath = validPts.map((p,i) =>
+    `${i===0?'M':'L'} ${toXpct(i).toFixed(2)} ${toYpct(p.close).toFixed(2)}`
+  ).join(' ');
+  const fillPath = validPts.length > 0
+    ? linePath + ` L ${toXpct(validPts.length-1).toFixed(2)} 100 L 0 100 Z`
+    : '';
+
+  // Y축 눈금
+  const yTicks = Array.from({length:6}, (_,i) => ({
+    v:   minV + (i/5) * rng,
+    pct: toYpct(minV + (i/5) * rng),
+  })).reverse();
+
+  // X축 눈금
+  const xTicks = Array.from({length:7}, (_,i) => {
+    const idx = Math.round((i/6) * (validPts.length-1));
+    const p   = validPts[idx];
+    if (!p) return null;
+    const d   = new Date(p.t * 1000);
+    const lbl = range==="1D"
+      ? d.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",hour12:false})
+      : d.toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"});
+    return { label: lbl, pct: toXpct(idx) };
+  }).filter(Boolean);
+
+  // 현재가 Y 위치
+  const lastYpct = lastClose ? toYpct(lastClose) : 50;
+
+  // 포맷
+  const fmtP  = (v) => v == null ? '—' : Number(v).toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtDt = (ts) => {
+    if (!ts) return '';
+    const d = new Date(ts*1000);
+    return range==="1D"
+      ? d.toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})+" "+d.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})
+      : d.toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"});
+  };
+
+  // 마우스
+  const handleMouseMove = (e) => {
+    if (!validPts.length) return;
+    const rect = chartRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const xRel = (e.clientX - rect.left) / rect.width;
+    const idx  = Math.min(Math.max(Math.round(xRel * (validPts.length-1)), 0), validPts.length-1);
+    const p    = validPts[idx];
+    setCrosshair({ xPct: toXpct(idx), yPct: toYpct(p.close), idx, p });
+    setTooltip({ close:p.close, open:p.open, high:p.high, low:p.low, ts:p.t });
+  };
+  const handleMouseLeave = () => { setCrosshair(null); setTooltip(null); };
+
+  // 통계
+  const allHigh = validPts.length ? Math.max(...validPts.map(p=>p.high||p.close)) : null;
+  const allLow  = validPts.length ? Math.min(...validPts.map(p=>p.low||p.close))  : null;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.92)",
+        display:"flex",alignItems:"center",justifyContent:"center",padding:"12px",
+        backdropFilter:"blur(8px)"}}
+    >
+      <div
+        onClick={e=>e.stopPropagation()}
+        style={{width:"100%",maxWidth:820,background:"#080A0C",
+          border:"1px solid rgba(247,147,26,0.2)",borderRadius:20,overflow:"hidden",
+          boxShadow:"0 0 0 1px rgba(247,147,26,0.06),0 40px 100px rgba(0,0,0,0.8),0 0 60px rgba(247,147,26,0.04)",
+          fontFamily:"'Space Mono',monospace",position:"relative"}}
+      >
+
+        {/* 상단 광선 */}
+        <div style={{position:"absolute",top:0,left:0,right:0,height:1,
+          background:`linear-gradient(90deg,transparent 0%,${O} 40%,${O2} 60%,transparent 100%)`,
+          opacity:0.7}}
+        />
+
+        {/* ── 헤더 ── */}
+        <div style={{padding:"20px 24px 0",
+          background:"linear-gradient(180deg,#0D1018 0%,#080A0C 100%)"}}>
+
+          {/* 심볼 행 */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:2,color:"#080A0C",
+                background:`linear-gradient(135deg,${O},${O2})`,padding:"4px 12px",borderRadius:6,
+                boxShadow:"0 0 12px rgba(247,147,26,0.4)"}}>
+                {sym}
+              </div>
+              <div style={{fontSize:12,color:"#4A5568",letterSpacing:0.5}}>
+                {flag} {label} / KRW{label==="JPY"?" · 100엔":""}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:5}}>
+                <div style={{width:6,height:6,borderRadius:"50%",background:O,
+                  boxShadow:`0 0 8px ${O}`,animation:"pulse 1.5s ease-in-out infinite"}}
+                />
+                <span style={{fontSize:9,color:"rgba(247,147,26,0.5)",letterSpacing:1}}>LIVE</span>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=O;e.currentTarget.style.color=O;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="#4A5568";}}
+              style={{background:"transparent",border:"1px solid rgba(255,255,255,0.08)",
+                borderRadius:8,color:"#4A5568",width:34,height:34,cursor:"pointer",
+                fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",
+                transition:"all 0.2s"}}
+            >✕</button>
+          </div>
+
+          {/* 가격 */}
+          <div style={{display:"flex",alignItems:"flex-end",gap:16,marginBottom:8}}>
+            <div style={{fontSize:38,fontWeight:700,letterSpacing:-1.5,lineHeight:1,color:"#F0EDE8"}}>
+              {fmtP(crosshair ? crosshair.p.close : lastClose)}
+            </div>
+            {firstClose && lastClose && (
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                <div style={{fontSize:13,fontWeight:700,
+                  color:isUp?O:"#ef5350",
+                  background:isUp?"rgba(247,147,26,0.1)":"rgba(239,83,80,0.1)",
+                  border:`1px solid ${isUp?"rgba(247,147,26,0.25)":"rgba(239,83,80,0.25)"}`,
+                  padding:"3px 10px",borderRadius:6}}>
+                  {isUp?"+":""}{fmtP(change)}
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:isUp?O2:"#fc8181"}}>
+                  {isUp?"+":""}{changePct.toFixed(2)}%
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* OHLC 인포바 */}
+          <div style={{display:"flex",gap:0,marginBottom:0,
+            background:"rgba(255,255,255,0.02)",borderRadius:"6px 6px 0 0",
+            border:"1px solid rgba(255,255,255,0.04)",borderBottom:"none",overflow:"hidden"}}>
+            {(crosshair ? [
+              {k:"TIME", v:fmtDt(crosshair.p.t),           c:"#8A9AAA"},
+              {k:"O",    v:fmtP(crosshair.p.open),          c:"#C0B8B0"},
+              {k:"H",    v:fmtP(crosshair.p.high),          c:O},
+              {k:"L",    v:fmtP(crosshair.p.low),           c:"#ef5350"},
+              {k:"C",    v:fmtP(crosshair.p.close),         c:"#F0EDE8"},
+            ] : [
+              {k:"OPEN",  v:fmtP(firstClose),  c:"#C0B8B0"},
+              {k:"CLOSE", v:fmtP(lastClose),   c:O},
+              {k:"HIGH",  v:fmtP(allHigh),     c:O2},
+              {k:"LOW",   v:fmtP(allLow),      c:"#fc8181"},
+              {k:"RANGE", v:allHigh&&allLow ? fmtP(allHigh-allLow) : "—", c:"#6B7280"},
+            ]).map((item,i,arr) => (
+              <div key={i} style={{flex:1,padding:"7px 10px",
+                borderRight:i<arr.length-1?"1px solid rgba(255,255,255,0.04)":"none"}}>
+                <div style={{fontSize:8,color:"#3A4455",letterSpacing:1,marginBottom:3}}>{item.k}</div>
+                <div style={{fontSize:10,fontWeight:700,color:item.c}}>{item.v||"—"}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Range 탭 */}
+          <div style={{display:"flex",gap:0,borderTop:"1px solid rgba(255,255,255,0.04)",
+            background:"rgba(0,0,0,0.3)"}}>
+            {RANGES.map(r => (
+              <button key={r} onClick={()=>onRangeChange(r)}
+                style={{flex:1,padding:"9px 4px",border:"none",cursor:"pointer",
+                  fontSize:10,fontWeight:700,fontFamily:"'Space Mono',monospace",
+                  letterSpacing:0.5,transition:"all 0.15s",
+                  background:range===r?"rgba(247,147,26,0.06)":"transparent",
+                  color:range===r?O:"#3A4455",
+                  borderBottom:range===r?`2px solid ${O}`:"2px solid transparent"}}>
+                {r}
+              </button>
+            ))}
+          </div>
+
+        </div>
+        {/* ── 헤더 끝 ── */}
+
+        {/* ── 차트 본체 ── */}
+        <div style={{background:"#080A0C"}}>
+
+          {/* 로딩 */}
+          {loading && (
+            <div style={{height:372,display:"flex",flexDirection:"column",
+              alignItems:"center",justifyContent:"center",gap:14}}>
+              <div style={{position:"relative",width:44,height:44}}>
+                <div style={{position:"absolute",inset:0,borderRadius:"50%",
+                  border:"2px solid rgba(247,147,26,0.1)"}}
+                />
+                <div style={{position:"absolute",inset:0,borderRadius:"50%",
+                  border:"2px solid transparent",borderTop:`2px solid ${O}`,
+                  animation:"spin 0.9s linear infinite",boxShadow:`0 0 12px ${O}`}}
+                />
+              </div>
+              <div style={{color:"rgba(247,147,26,0.4)",fontSize:10,letterSpacing:2}}>LOADING</div>
+            </div>
+          )}
+
+          {/* 데이터 없음 */}
+          {!loading && validPts.length === 0 && (
+            <div style={{height:372,display:"flex",flexDirection:"column",
+              alignItems:"center",justifyContent:"center",gap:10}}>
+              <div style={{fontSize:32,opacity:0.15}}>₿</div>
+              <div style={{color:"#2A3040",fontSize:11,letterSpacing:1}}>NO DATA</div>
+              <div style={{color:"#1A2030",fontSize:9}}>잠시 후 다시 시도해주세요</div>
+            </div>
+          )}
+
+          {/* 실제 차트 */}
+          {!loading && validPts.length > 0 && (
+            <div style={{position:"relative",userSelect:"none"}}>
+
+              {/* 라인 차트 영역 */}
+              <div
+                ref={chartRef}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                style={{position:"relative",height:320,cursor:"crosshair"}}
+              >
+                {/* 차트 SVG */}
+                <svg width="100%" height="100%"
+                  viewBox="0 0 100 100" preserveAspectRatio="none"
+                  style={{position:"absolute",top:0,left:0,
+                    width:`calc(100% - ${PAD.right}px)`,height:"100%"}}>
+                  <defs>
+                    <linearGradient id={`og_${sym}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={lineColor} stopOpacity={isUp?"0.28":"0.16"}/>
+                      <stop offset="55%"  stopColor={lineColor} stopOpacity="0.05"/>
+                      <stop offset="100%" stopColor={lineColor} stopOpacity="0"/>
+                    </linearGradient>
+                    <filter id={`glow_${sym}`}>
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="0.5" result="b"/>
+                      <feMerge>
+                        <feMergeNode in="b"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  {/* 수평 그리드 */}
+                  {yTicks.map((t,i) => (
+                    <line key={i} x1="0" y1={t.pct} x2="100" y2={t.pct}
+                      stroke={i===0||i===yTicks.length-1?"rgba(247,147,26,0.07)":"rgba(255,255,255,0.03)"}
+                      strokeWidth="0.4"/>
+                  ))}
+
+                  {/* 수직 그리드 */}
+                  {xTicks.map((t,i) => (
+                    <line key={i} x1={t.pct} y1="0" x2={t.pct} y2="100"
+                      stroke="rgba(255,255,255,0.025)" strokeWidth="0.35"/>
+                  ))}
+
+                  {/* Fill */}
+                  {fillPath && <path d={fillPath} fill={`url(#og_${sym})`}/>}
+
+                  {/* 메인 라인 */}
+                  <path d={linePath} stroke={lineColor}
+                    strokeWidth={isUp?"0.7":"0.65"} fill="none"
+                    strokeLinejoin="round" strokeLinecap="round"
+                    filter={`url(#glow_${sym})`}/>
+
+                  {/* 현재가 점선 */}
+                  {!crosshair && lastClose && (
+                    <line x1="0" y1={lastYpct} x2="100" y2={lastYpct}
+                      stroke={isUp?"rgba(247,147,26,0.35)":"rgba(239,83,80,0.3)"}
+                      strokeWidth="0.3" strokeDasharray="1.5,2"/>
+                  )}
+
+                  {/* 크로스헤어 */}
+                  {crosshair && (
+                    <g>
+                      <line x1={crosshair.xPct} y1="0" x2={crosshair.xPct} y2="100"
+                        stroke="rgba(247,147,26,0.22)" strokeWidth="0.35" strokeDasharray="1.5,2"/>
+                      <line x1="0" y1={crosshair.yPct} x2="100" y2={crosshair.yPct}
+                        stroke="rgba(247,147,26,0.22)" strokeWidth="0.35" strokeDasharray="1.5,2"/>
+                      <circle cx={crosshair.xPct} cy={crosshair.yPct} r="2.2"
+                        fill="none" stroke="rgba(247,147,26,0.3)" strokeWidth="0.4"/>
+                      <circle cx={crosshair.xPct} cy={crosshair.yPct} r="1"
+                        fill={lineColor} stroke="#080A0C" strokeWidth="0.4"/>
+                    </g>
+                  )}
+                </svg>
+
+                {/* Y축 패널 */}
+                <div style={{position:"absolute",top:0,right:0,
+                  width:PAD.right,height:"100%",
+                  borderLeft:"1px solid rgba(247,147,26,0.06)",
+                  background:"rgba(0,0,0,0.2)"}}>
+                  {yTicks.map((t,i) => (
+                    <div key={i} style={{position:"absolute",top:`${t.pct}%`,
+                      transform:"translateY(-50%)",right:8,
+                      fontSize:9,color:"#3A4455",whiteSpace:"nowrap",
+                      fontFamily:"'Space Mono',monospace"}}>
+                      {t.v.toLocaleString("ko-KR",{minimumFractionDigits:1,maximumFractionDigits:1})}
+                    </div>
+                  ))}
+                  {/* 현재가 태그 */}
+                  {lastClose && (
+                    <div style={{position:"absolute",top:`${lastYpct}%`,
+                      transform:"translateY(-50%)",right:0,left:0,
+                      background:lineColor,color:"#000",fontSize:9,fontWeight:700,
+                      textAlign:"center",padding:"3px 4px",borderRadius:"3px 0 0 3px",
+                      boxShadow:`-3px 0 10px ${lineGlow}`,zIndex:5,whiteSpace:"nowrap"}}>
+                      {fmtP(crosshair ? crosshair.p.close : lastClose)}
+                    </div>
+                  )}
+                </div>
+
+                {/* X 크로스헤어 시간 태그 */}
+                {crosshair && (
+                  <div style={{position:"absolute",bottom:0,
+                    left:`calc(${crosshair.xPct}% - 40px)`,width:80,
+                    background:"rgba(247,147,26,0.15)",
+                    border:"1px solid rgba(247,147,26,0.3)",
+                    color:O,fontSize:8,fontWeight:700,textAlign:"center",
+                    padding:"2px 4px",borderRadius:3,zIndex:6,
+                    backdropFilter:"blur(4px)"}}>
+                    {fmtDt(crosshair.p.t)}
+                  </div>
+                )}
+
+              </div>
+              {/* 라인 차트 영역 끝 */}
+
+              {/* 볼륨 바 */}
+              <div style={{height:52,position:"relative",
+                borderTop:"1px solid rgba(247,147,26,0.06)",
+                background:"rgba(0,0,0,0.15)"}}>
+                <div style={{position:"absolute",top:4,left:8,
+                  fontSize:8,color:"rgba(247,147,26,0.2)",letterSpacing:2}}>VOL</div>
+                <svg width="100%" height="100%"
+                  viewBox="0 0 100 100" preserveAspectRatio="none"
+                  style={{position:"absolute",top:0,left:0,
+                    width:`calc(100% - ${PAD.right}px)`,height:"100%"}}>
+                  {validPts.map((p,i) => {
+                    const up   = p.close >= (p.open||p.close);
+                    const bw   = Math.max(100/validPts.length*0.65, 0.15);
+                    const bx   = toXpct(i)-bw/2;
+                    const volH = ((p.volume||0)/maxVol)*80;
+                    return (
+                      <rect key={i} x={bx} y={100-volH} width={bw} height={volH}
+                        fill={up?"rgba(247,147,26,0.4)":"rgba(239,83,80,0.3)"} rx="0.1"/>
+                    );
+                  })}
+                  {crosshair && (
+                    <line x1={crosshair.xPct} y1="0" x2={crosshair.xPct} y2="100"
+                      stroke="rgba(247,147,26,0.15)" strokeWidth="0.4" strokeDasharray="1.5,2"/>
+                  )}
+                </svg>
+                <div style={{position:"absolute",top:0,right:0,
+                  width:PAD.right,height:"100%",
+                  borderLeft:"1px solid rgba(247,147,26,0.06)"}}/>
+              </div>
+              {/* 볼륨 바 끝 */}
+
+              {/* X축 레이블 */}
+              <div style={{height:28,position:"relative",
+                borderTop:"1px solid rgba(247,147,26,0.06)",
+                background:"rgba(0,0,0,0.2)"}}>
+                <div style={{position:"absolute",inset:0,right:PAD.right}}>
+                  {xTicks.map((t,i) => (
+                    <div key={i} style={{position:"absolute",left:`${t.pct}%`,
+                      transform:"translateX(-50%)",top:7,
+                      fontSize:9,color:"#3A4455",whiteSpace:"nowrap",
+                      fontFamily:"'Space Mono',monospace"}}>
+                      {t.label}
+                    </div>
+                  ))}
+                </div>
+                <div style={{position:"absolute",top:0,right:0,
+                  width:PAD.right,height:"100%",
+                  borderLeft:"1px solid rgba(247,147,26,0.06)"}}/>
+              </div>
+              {/* X축 레이블 끝 */}
+
+            </div>
+          )}
+          {/* 실제 차트 끝 */}
+
+        </div>
+        {/* 차트 본체 끝 */}
+
+        {/* 푸터 */}
+        <div style={{padding:"8px 20px",
+          borderTop:"1px solid rgba(247,147,26,0.06)",
+          background:"rgba(0,0,0,0.3)",
+          display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:9,color:"rgba(247,147,26,0.3)",letterSpacing:1}}>POWERED BY</span>
+            <span style={{fontSize:9,color:"#2A3040"}}>Yahoo Finance</span>
+          </div>
+          <div style={{fontSize:9,color:"#252D3A"}}>
+            {validPts.length > 0 && `${validPts.length}pts · ${fmtDt(validPts[validPts.length-1].t)}`}
+          </div>
+        </div>
+        {/* 푸터 끝 */}
+
+        {/* 하단 광선 */}
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,
+          background:"linear-gradient(90deg,transparent,rgba(247,147,26,0.15),transparent)"}}/>
+
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [tab,setTab]=useState(0);
+  const [btcUsdt,setBtcUsdt]=useState(null);
+  const [btcKrw,setBtcKrw]=useState(null);
+  const [usdKrw,setUsdKrw]=useState(null);
+  const [jpyKrw,setJpyKrw]=useState(null);
+  const [eurKrw,setEurKrw]=useState(null);
+  const [cnyKrw,setCnyKrw]=useState(null);
+  const [fng,setFng]=useState(32);
+  const [miningCost,setMiningCost]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [lastUpdate,setLastUpdate]=useState(null);
+  const [errors,setErrors]=useState({});
+  const [chartModal,setChartModal]=useState(null); // {sym, label, flag}
+  const [chartData,setChartData]=useState({});
+  const [chartRange,setChartRange]=useState("1D");
+  const [chartLoading,setChartLoading]=useState(false);
+  const [tooltip,setTooltip]=useState(null);
+
+  const RANGE_CONFIG = {
+    "1D": {interval:"5m",  range:"1d",  label:"1일"},
+    "5D": {interval:"30m", range:"5d",  label:"5일"},
+    "1M": {interval:"1d",  range:"1mo", label:"1개월"},
+    "6M": {interval:"1d",  range:"6mo", label:"6개월"},
+    "1Y": {interval:"1wk", range:"1y",  label:"1년"},
+    "All": {interval:"1mo", range:"max", label:"전체"},
+  };
+
+  const WORKER = "https://yahoo-proxy.tpdnjs0161.workers.dev";
+  const cfProxy = (url) => `${WORKER}/?url=${encodeURIComponent(url)}`;
+
+  const fetchChart = useCallback(async (sym, range) => {
+    setChartLoading(true);
+    const {interval, range:r} = RANGE_CONFIG[range];
+
+    const proxies = [
+      (url) => `${WORKER}/?url=${encodeURIComponent(url)}`,
+      (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    ];
+
+    const parseResult = (d, targetRange) => {
+      const result = d?.chart?.result?.[0];
+      if(!result) return null;
+      const ts = result.timestamp;
+      if(!ts) return null;
+      const q = result.indicators.quote[0];
+      let pts = ts.map((t,i) => ({
+        t,
+        close:  q.close?.[i]  ?? null,
+        open:   q.open?.[i]   ?? null,
+        high:   q.high?.[i]   ?? null,
+        low:    q.low?.[i]    ?? null,
+        volume: q.volume?.[i] ?? 0,
+      })).filter(p => p.close != null);
+
+      // 1D: 오늘 날짜 데이터만 필터 (어제까지 포함한 2d에서 오늘치만)
+      if(targetRange === "1D") {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
+        const filtered = pts.filter(p => p.t >= todayStart);
+        // 오늘 데이터가 10개 미만이면 전체 반환 (주말/공휴일 대응)
+        pts = filtered.length >= 5 ? filtered : pts;
+      }
+      return pts;
+    };
+
+    // 1D는 2d range로 넉넉히 가져와서 오늘치만 필터링
+    const actualRange = r === "1d" ? "2d" : r;
+
+    const yahooUrls = [
+      `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=${interval}&range=${actualRange}`,
+      `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=${interval}&range=${actualRange}`,
+    ];
+
+    let points = null;
+    outer: for (const proxy of proxies) {
+      for (const yahooUrl of yahooUrls) {
+        try {
+          const res = await fetch(proxy(yahooUrl), { signal: AbortSignal.timeout(4000) });
+          const d = await res.json();
+          const parsed = parseResult(d, range);
+          if (parsed && parsed.length > 0) {
+            points = parsed;
+            break outer;
+          }
+        } catch(e) {}
+      }
+    }
+
+    if(points && points.length > 0) {
+      setChartData(prev=>({...prev, [sym+range]: points}));
+    }
+    setChartLoading(false);
+  },[]);
+
+  const openChart = useCallback((sym, label, flag) => {
+    setChartModal({sym, label, flag});
+    setChartRange("1D");
+    setTooltip(null);
+    fetchChart(sym, "1D");
+  },[fetchChart]);
+
+  const kimchi = btcUsdt && btcKrw && usdKrw
+    ? (((btcKrw/usdKrw)-btcUsdt)/btcUsdt*100).toFixed(2)
+    : null;
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    const errs={};
+    const tFetch = (url, ms=2000) => fetch(url, {signal: AbortSignal.timeout(ms)});
+
+    // ── 모든 API 병렬 호출 ──
+    const [btcRes, upbitRes, fxRes, fngRes, miningRes] = await Promise.allSettled([
+
+      // 1) Binance BTC/USDT
+      tFetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT")
+        .then(r=>r.json()),
+
+      // 2) Upbit BTC/KRW
+      tFetch("https://api.upbit.com/v1/ticker?markets=KRW-BTC")
+        .then(r=>r.json()),
+
+      // 3) 환율 — Cloudflare Worker (안정적 실시간) + 폴백
+      (async () => {
+        const yahooSymbols = { USD:"USDKRW=X", EUR:"EURKRW=X", JPY:"JPYKRW=X", CNY:"CNYKRW=X" };
+
+        const proxies = [
+          (url) => `${WORKER}/?url=${encodeURIComponent(url)}`,
+          (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        ];
+
+        const fetchYahooPrice = async (sym) => {
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=5m&range=1d`;
+          for (const proxy of proxies) {
+            try {
+              const res = await fetch(proxy(url), { signal: AbortSignal.timeout(2500) });
+              const d = await res.json();
+              const price = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+              if (price) return price;
+            } catch(e) {}
+          }
+          return null;
+        };
+
+        // 1차: Yahoo Finance 실시간 (4개 통화 병렬)
+        try {
+          const results = await Promise.all(
+            Object.entries(yahooSymbols).map(([k, sym]) =>
+              fetchYahooPrice(sym).then(price => ({ key:k, price }))
+            )
+          );
+          const fx = { USD:null, EUR:null, JPY:null, CNY:null };
+          results.forEach(({ key, price }) => {
+            if (price) fx[key] = key === "JPY" ? price * 100 : price;
+          });
+          if (fx.USD) return fx; // 하나라도 성공하면 반환
+        } catch(e) {}
+
+        // 2차 폴백: Frankfurter (ECB 기준, 안정적)
+        try {
+          const r = await tFetch("https://api.frankfurter.app/latest?from=USD&to=KRW,EUR,JPY", 3000);
+          const d = await r.json();
+          if (d?.rates?.KRW) {
+            return {
+              USD: d.rates.KRW,
+              EUR: d.rates.KRW / d.rates.EUR,
+              JPY: (d.rates.KRW / d.rates.JPY) * 100,
+              CNY: null,
+            };
+          }
+        } catch(e) {}
+
+        // 3차 폴백: open.er-api
+        try {
+          const r = await tFetch("https://open.er-api.com/v6/latest/USD", 3000);
+          const d = await r.json();
+          if (d?.rates?.KRW) {
+            return {
+              USD: d.rates.KRW,
+              EUR: d.rates.KRW / d.rates.EUR,
+              JPY: (d.rates.KRW / d.rates.JPY) * 100,
+              CNY: d.rates.KRW / d.rates.CNY,
+            };
+          }
+        } catch(e) {}
+
+        return { USD:null, EUR:null, JPY:null, CNY:null };
+      })(),
+
+      // 4) 공포탐욕
+      tFetch("https://api.alternative.me/fng/?limit=1", 2000)
+        .then(r=>r.json()),
+
+      // 5) 채굴원가 (느려도 됨, 독립적)
+      tFetch("https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=RevHashRateUSD&frequency=1d&limit=1&api_key=", 2500)
+        .then(r=>r.json()),
+    ]);
+
+    // ── 결과 처리 ──
+    if(btcRes.status==="fulfilled") {
+      const price = parseFloat(btcRes.value?.price);
+      if(!isNaN(price)) setBtcUsdt(price);
+      else errs.btc=true;
+    } else { errs.btc=true; }
+
+    if(upbitRes.status==="fulfilled") {
+      const price = upbitRes.value?.[0]?.trade_price;
+      if(price) setBtcKrw(price);
+      else errs.upbit=true;
+    } else { errs.upbit=true; }
+
+    if(fxRes.status==="fulfilled") {
+      const fx = fxRes.value;
+      if(fx.USD) setUsdKrw(fx.USD);
+      if(fx.EUR) setEurKrw(fx.EUR);
+      if(fx.JPY) setJpyKrw(fx.JPY);
+      if(fx.CNY) setCnyKrw(fx.CNY);
+      if(!fx.USD && !fx.EUR) errs.fx=true;
+    } else { errs.fx=true; }
+
+    if(fngRes.status==="fulfilled") {
+      const val = parseInt(fngRes.value?.data?.[0]?.value);
+      if(!isNaN(val)) setFng(val);
+      else errs.fng=true;
+    } else { errs.fng=true; }
+
+    if(miningRes.status==="fulfilled") {
+      const hashVal = miningRes.value?.data?.[0]?.RevHashRateUSD;
+      setMiningCost(hashVal ? Math.round(parseFloat(hashVal)*1.2) : 78000);
+    } else { setMiningCost(78000); }
+
+    setErrors(errs);
+    setLastUpdate(new Date().toLocaleTimeString("ko-KR"));
+    setLoading(false);
+  },[]);
+
+  useEffect(()=>{
+    fetchAll();
+    const id=setInterval(fetchAll, 30000);
+    return ()=>clearInterval(id);
+  },[]);
+
+  return (
+    <div style={{background:"#000",minHeight:"100vh",color:"#F5F0EB",padding:"16px 12px 60px",maxWidth:720,margin:"0 auto"}}>
+
+      {/* ── Header ── */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div>
+          <div style={{fontSize:10,color:"rgba(247,147,26,0.5)",letterSpacing:4,textTransform:"uppercase",marginBottom:3,fontFamily:"'Space Mono',monospace"}}>
+            REAL-TIME ALL-IN-ONE
+          </div>
+          <div className="shimmer-text" style={{fontSize:26,fontWeight:900,letterSpacing:-0.5,fontFamily:"'Space Mono',monospace"}}>
+            All in Won ₿
+          </div>
+        </div>
+        <button className="refresh-btn" onClick={fetchAll} disabled={loading}>
+          <span className={loading?"spin":""}>{loading?"↻":"↻"}</span>{" "}
+          {lastUpdate || "로딩 중…"}
+        </button>
+      </div>
+
+      {/* ── BTC 히어로 + 환율 사이드 ── */}
+      <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"stretch"}}>
+
+        {/* BTC 메인 히어로 */}
+        <div className="btc-hero" style={{flex:1,marginBottom:0}}>
+          <div style={{fontSize:10,color:"#A89F96",marginBottom:12,display:"flex",alignItems:"center"}}>
+            <span className="live-dot"/>
+            <span>BTC 실시간 시세 · 30초 자동갱신</span>
+            {errors.btc && <span style={{color:"#ef4444",marginLeft:8}}>⚠ Binance 오류</span>}
+            {errors.upbit && <span style={{color:"#ef4444",marginLeft:8}}>⚠ Upbit 오류</span>}
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            <div className="mini-card" style={{flex:1,minWidth:110}}>
+              <div style={{fontSize:10,color:"#9A8F86",marginBottom:4}}>원화 (KRW)</div>
+              <div className="number-mono" style={{fontSize:20,fontWeight:700,color:"#F5F0EB"}}>
+                ₩{btcKrw ? fmt(btcKrw) : "로딩…"}
+              </div>
+              <div style={{fontSize:10,color:"#8A7F76",marginTop:3}}>
+                {btcKrw ? (btcKrw/1e8).toFixed(4)+"억원" : "—"}
+              </div>
+            </div>
+            <div className="mini-card" style={{flex:1,minWidth:110}}>
+              <div style={{fontSize:10,color:"#9A8F86",marginBottom:4}}>테더 (USDT)</div>
+              <div className="number-mono" style={{fontSize:20,fontWeight:700,color:"#F7931A"}}>
+                ${btcUsdt ? fmt(btcUsdt) : "로딩…"}
+              </div>
+              <div style={{fontSize:10,color:"#8A7F76",marginTop:3}}>
+                환율 ₩{usdKrw ? Number(usdKrw).toLocaleString("ko-KR",{maximumFractionDigits:2}) : "…"}
+              </div>
+            </div>
+            <div className="mini-card" style={{
+              minWidth:100,
+              border:`1px solid ${kimchi===null?"#1A1A1A":parseFloat(kimchi)>=0?"rgba(247,147,26,0.3)":"rgba(239,68,68,0.3)"}`,
+              textAlign:"center"
+            }}>
+              <div style={{fontSize:10,color:"#9A8F86",marginBottom:4}}>김치프리미엄</div>
+              <div className="number-mono" style={{
+                fontSize:20,fontWeight:700,
+                color: kimchi===null?"#8A7F76":parseFloat(kimchi)>=0?"#F7931A":"#ef4444"
+              }}>
+                {kimchi===null ? "—" : `${parseFloat(kimchi)>=0?"+":""}${kimchi}%`}
+              </div>
+              <div style={{fontSize:10,color:"#8A7F76",marginTop:3}}>
+                {kimchi===null ? "" : parseFloat(kimchi)>=0 ? "김프 🇰🇷" : "역프 📉"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 환율 사이드 */}
+        <div style={{
+          display:"flex",flexDirection:"column",gap:5,
+          background:"#111",border:"1px solid rgba(247,147,26,0.12)",
+          borderRadius:16,padding:"11px 9px",width:82,flexShrink:0,
+          position:"relative",overflow:"hidden"
+        }}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(247,147,26,0.35),transparent)"}}/>
+          <div style={{fontSize:8,color:"#8A9AAA",display:"flex",alignItems:"center",marginBottom:1,justifyContent:"center"}}>
+            <span className="live-dot" style={{width:4,height:4,marginRight:3}}/>
+            환율{errors.fx&&<span style={{color:"#ef4444",marginLeft:3}}>⚠</span>}
+          </div>
+          {[
+            {flag:"🇺🇸",label:"USD",val:usdKrw,sym:"USDKRW=X"},
+            {flag:"🇪🇺",label:"EUR",val:eurKrw,sym:"EURKRW=X"},
+            {flag:"🇯🇵",label:"JPY",val:jpyKrw,sym:"JPYKRW=X"},
+            {flag:"🇨🇳",label:"CNY",val:cnyKrw,sym:"CNYKRW=X"},
+          ].map((fx,i)=>(
+            <div key={i} onClick={()=>openChart(fx.sym, fx.label, fx.flag)}
+              style={{textAlign:"center",padding:"5px 3px",background:"#181818",borderRadius:7,
+                border:"1px solid #1E1E1E",cursor:"pointer",transition:"all 0.2s"}}
+              onMouseEnter={e=>{e.currentTarget.style.border="1px solid rgba(247,147,26,0.4)"; e.currentTarget.style.background="#1E1A14";}}
+              onMouseLeave={e=>{e.currentTarget.style.border="1px solid #1E1E1E"; e.currentTarget.style.background="#181818";}}>
+              <div style={{fontSize:9,color:"#6B7280",marginBottom:2}}>{fx.flag} {fx.label}</div>
+              <div className="number-mono" style={{fontSize:11,fontWeight:700,color:"#C8BFBA",lineHeight:1}}>
+                {fx.val ? fmt(Math.round(fx.val)) : "…"}
+              </div>
+              <div style={{fontSize:7,color:"#6B7280",marginTop:1}}>{fx.label==="JPY"?"100엔":"원"} 📈</div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      {/* ── 채굴원가 + 공포탐욕 ── */}
+      <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
+        {/* 채굴원가 */}
+        <div className="btc-card" style={{flex:1,minWidth:260,marginBottom:0}}>
+          <div style={{fontSize:11,color:"#A89F96",marginBottom:10}}>
+            ⛏ BTC 채굴 원가 vs 현재가
+            <span className="tag-live">실시간</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12}}>
+            <div>
+              <div style={{fontSize:9,color:"#9A8F86"}}>채굴 원가</div>
+              <div className="number-mono" style={{fontSize:18,fontWeight:700,color:"#FFB347"}}>
+                ${miningCost ? fmt(miningCost) : "…"}
+              </div>
+            </div>
+            <div style={{fontSize:14,color:"#8A9AAA"}}>vs</div>
+            <div>
+              <div style={{fontSize:9,color:"#9A8F86"}}>현재 시세</div>
+              <div className="number-mono" style={{
+                fontSize:18,fontWeight:700,
+                color: btcUsdt&&miningCost ? (btcUsdt>miningCost?"#22c55e":"#ef4444") : "#F5F0EB"
+              }}>
+                ${btcUsdt ? fmt(btcUsdt) : "…"}
+              </div>
+            </div>
+            <div style={{
+              marginLeft:"auto",padding:"6px 10px",borderRadius:8,
+              background: btcUsdt&&miningCost ? (btcUsdt>miningCost?"rgba(34,197,94,0.08)":"rgba(239,68,68,0.08)") : "#111",
+              border:`1px solid ${btcUsdt&&miningCost?(btcUsdt>miningCost?"rgba(34,197,94,0.3)":"rgba(239,68,68,0.3)"):"#222"}`,
+              color: btcUsdt&&miningCost ? (btcUsdt>miningCost?"#22c55e":"#ef4444") : "#8A7F76",
+              fontWeight:700,fontSize:11,whiteSpace:"nowrap",
+            }}>
+              {btcUsdt&&miningCost ? (btcUsdt>miningCost?"✅ 원가 위":"🔴 원가 하회") : "—"}
+            </div>
+          </div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{
+              width:`${btcUsdt&&miningCost ? Math.min((btcUsdt/120000)*100,100) : 0}%`
+            }}/>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#8A9AAA",marginTop:4}}>
+            <span>$0</span>
+            <span>원가 ${miningCost ? fmt(miningCost) : "…"}</span>
+            <span>$120K</span>
+          </div>
+        </div>
+
+        {/* 공포탐욕 */}
+        <div className="btc-card" style={{flex:1,minWidth:200,marginBottom:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+          <div style={{fontSize:11,color:"#A89F96",marginBottom:4,alignSelf:"flex-start"}}>
+            😨 가상자산 공포·탐욕
+            <span className="tag-live">실시간</span>
+          </div>
+          {errors.fng && <div style={{fontSize:10,color:"#ef4444",marginBottom:4}}>⚠ 오류 — 최근값</div>}
+          <Gauge value={fng} size={130}/>
+          <div style={{fontSize:19,fontWeight:900,color:fgColor(fng),marginTop:-4,fontFamily:"'Space Mono',monospace"}}>{fgLabel(fng)}</div>
+          <div style={{fontSize:11,color:"#9A8F86",marginTop:2}}>지수 {fng} / 100</div>
+        </div>
+      </div>
+
+      {/* ── 거래소 보유량 ── */}
+      <div className="btc-card">
+        <div style={{fontSize:11,color:"#A89F96",marginBottom:10}}>🏦 거래소 BTC 보유량 (CryptoQuant)</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div className="number-mono gradient-text" style={{fontSize:26,fontWeight:700}}>2.35M BTC</div>
+            <div style={{fontSize:11,color:"#9A8F86",marginTop:3}}>전체 거래소 합산</div>
+          </div>
+          <div style={{padding:"8px 16px",borderRadius:10,background:"rgba(34,197,94,0.06)",border:"1px solid rgba(34,197,94,0.2)",textAlign:"center"}}>
+            <div style={{fontSize:14,fontWeight:800,color:"#22c55e"}}>▼ 감소세</div>
+            <div style={{fontSize:10,color:"#8A7F76",marginTop:2}}>장기 추세</div>
+          </div>
+        </div>
+        <div style={{marginTop:10,padding:"10px 12px",background:"#0D0D0D",borderRadius:8,fontSize:12,color:"#B0A89F",lineHeight:1.7,border:"1px solid #161616"}}>
+          📌 보유량 감소 = 투자자 개인지갑 이동 →{" "}
+          <span style={{color:"#F7931A",fontWeight:700}}>매도 압력 감소 신호</span>
+        </div>
+      </div>
+
+      {/* ── 탭 ── */}
+      <div style={{display:"flex",gap:4,marginBottom:12,background:"#0D0D0D",borderRadius:14,padding:4,border:"1px solid #1A1A1A"}}>
+        {TABS.map((t,i)=>(
+          <button key={i}
+            className={`tab-btn ${tab===i?"active":"inactive"}`}
+            onClick={()=>setTab(i)}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* TAB 0: 시총순위 */}
+      {tab===0 && (
+        <div className="card btc-card" style={{padding:0,overflow:"hidden"}}>
+          <div style={{padding:"12px 18px",borderBottom:"1px solid #161616",fontSize:11,color:"#A89F96"}}>
+            🏆 글로벌 시가총액 순위 (8marketcap.com · 금/은 포함)
+          </div>
+          <table>
+            <thead>
+              <tr>
+                {["#","자산","시총","가격","24h"].map(h=>(
+                  <th key={h} style={{textAlign:h==="#"?"center":"right"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {MCAP_DATA.map((row,i)=>(
+                <tr key={i} className={row.hl?"hl-row":""}>
+                  <td style={{color:row.hl?"#F7931A":"#7A6F66",fontWeight:row.hl?700:400,fontFamily:"'Space Mono',monospace",fontSize:11}}>
+                    {row.rank}
+                  </td>
+                  <td>
+                    <div style={{fontWeight:600,color:row.hl?"#F7931A":"#E0D8D0"}}>{row.name}</div>
+                    <div style={{fontSize:10,color:"#7A8A9A",fontFamily:"'Space Mono',monospace"}}>{row.sym}</div>
+                  </td>
+                  <td style={{color:"#9A8F86",fontSize:11,fontFamily:"'Space Mono',monospace"}}>{row.cap}</td>
+                  <td style={{fontWeight:600,color:"#E0D8D0",fontFamily:"'Space Mono',monospace"}}>{row.p}</td>
+                  <td style={{color:row.up?"#22c55e":"#ef4444",fontWeight:700,fontFamily:"'Space Mono',monospace"}}>{row.ch}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{padding:"8px 14px",fontSize:10,color:"#8A9AAA",borderTop:"1px solid #111"}}>
+            ⭐ Bitcoin 14위 · Tesla 13위 (금·은·ETF 포함 전체 순위)
+          </div>
+        </div>
+      )}
+
+      {/* TAB 1: 대사관 */}
+      {tab===1 && (
+        <div className="card btc-card">
+          <div style={{fontSize:11,color:"#A89F96",marginBottom:3}}>🏛 주한 대사관 철수 모니터</div>
+          <div style={{fontSize:10,color:"#8A7F76",marginBottom:14}}>AI가 6시간마다 자동 확인</div>
+          {EMBASSY.map((e,i)=>(
+            <div key={i} className="embassy-row" style={{
+              border:`1px solid ${e.safe?"rgba(34,197,94,0.15)":"rgba(239,68,68,0.15)"}`
+            }}>
+              <div style={{fontSize:16,fontWeight:700,color:"#E0D8D0"}}>{e.flag} {e.name}</div>
+              <div style={{
+                padding:"4px 14px",borderRadius:999,fontSize:12,fontWeight:700,
+                background:e.safe?"rgba(34,197,94,0.06)":"rgba(239,68,68,0.06)",
+                border:`1px solid ${e.safe?"rgba(34,197,94,0.2)":"rgba(239,68,68,0.2)"}`,
+                color:e.safe?"#22c55e":"#ef4444"
+              }}>
+                {e.safe ? "✅ " : "🚨 "}{e.status}
+              </div>
+            </div>
+          ))}
+          <div style={{padding:"10px 13px",background:"#0D0D0D",borderRadius:8,fontSize:11,color:"#9A8F86",lineHeight:1.7,marginTop:6,border:"1px solid #161616"}}>
+            📌 전체 91개 주한 대사관{" "}
+            <span style={{color:"#F7931A",fontWeight:700}}>철수 소식 없음</span>{" "}
+            (2026.03.12 기준)
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: 로보택시 */}
+      {tab===2 && (
+        <div className="card btc-card">
+          <div style={{fontSize:11,color:"#A89F96",marginBottom:3}}>🚗 Tesla 로보택시 플릿 현황</div>
+          <div style={{fontSize:10,color:"#8A7F76",marginBottom:18}}>2026.03.10 기준</div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:22}}>
+            <div style={{textAlign:"center",background:"#0D0D0D",borderRadius:14,padding:"18px 36px",border:"1px solid var(--border-bright)"}}>
+              <div className="number-mono gradient-text" style={{fontSize:52,fontWeight:700,lineHeight:1}}>400</div>
+              <div style={{fontSize:13,color:"#A89F96",marginTop:6}}>총 활성 차량</div>
+            </div>
+          </div>
+          {ROBOTAXI.map((row,i)=>(
+            <div key={i} style={{marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
+                <span style={{fontSize:13,fontWeight:600,color:"#E0D8D0"}}>{row.region}</span>
+                <span className="number-mono" style={{fontSize:13,fontWeight:700,color:row.color}}>{row.count}대</span>
+              </div>
+              <div className="robotaxi-bar">
+                <div style={{
+                  width:`${(row.count/355)*100}%`,
+                  background:`linear-gradient(90deg,${row.color}55,${row.color})`,
+                  height:"100%",borderRadius:999,
+                  transition:"width 0.8s ease"
+                }}/>
+              </div>
+              <div style={{fontSize:11,color:"#9A8F86",marginTop:5}}>{row.note}</div>
+            </div>
+          ))}
+          <div style={{padding:"10px 14px",background:"#0D0D0D",borderRadius:8,fontSize:12,color:"#A89F96",lineHeight:1.8,marginTop:8,border:"1px solid #161616"}}>
+            📌 머스크 목표 대비:{" "}
+            <span style={{color:"#ef4444",fontWeight:700}}>500대 약속 → 400대</span><br/>
+            Cybercab 양산 2026년 4월 예정 · 7개 도시 추가 확장 계획 중
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div style={{marginTop:24,textAlign:"center",fontSize:9,color:"#6B7280",lineHeight:2,letterSpacing:0.5}}>
+        Binance · Upbit · Yahoo Finance · alternative.me · 8marketcap.com<br/>
+        ⚡ BTC·환율·FnG 30초 자동갱신
+      </div>
+
+      {/* 환율 차트 모달 */}
+      {chartModal && (
+        <FxChart
+          sym={chartModal.sym}
+          label={chartModal.label}
+          flag={chartModal.flag}
+          range={chartRange}
+          data={chartData}
+          loading={chartLoading}
+          tooltip={tooltip}
+          setTooltip={setTooltip}
+          onRangeChange={(r)=>{
+            setChartRange(r);
+            setTooltip(null);
+            if(!chartData[chartModal.sym+r]) fetchChart(chartModal.sym, r);
+          }}
+          onClose={()=>{setChartModal(null);setTooltip(null);}}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
