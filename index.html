@@ -2,8 +2,26 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>All in Won</title>
+
+<!-- ── PWA / 아이폰 홈화면 바로가기 ── -->
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="All in Won"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#F7931A"/>
+
+<!-- 아이폰 홈화면 아이콘 (오렌지 BTC 아이콘) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgcng9IjI2IiBmaWxsPSIjRjc5MzFBIi8+PHRleHQgeD0iNTAlIiB5PSI1NiUiIGZvbnQtc2l6ZT0iNzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiMwMDAiIGZvbnQtd2VpZ2h0PSI5MDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7iri88L3RleHQ+PC9zdmc+"/>
+
+<!-- PWA manifest (인라인) -->
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiQWxsIGluIFdvbiIsInNob3J0X25hbWUiOiJBbGwgaW4gV29uIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwMDAwMDAiLCJ0aGVtZV9jb2xvciI6IiNGNzkzMUEiLCJpY29ucyI6W3sic3JjIjoiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhaaWJIVmxQU0pvZEhSd09pOHZkM2QzTG1GcWFpOXBiblJsY21ZdlltVjJiM0I0TDNSbGVIUXZNakF3TUNBM0tURXdNQ3d4TWpBaVBqeHlaV052a25RZ2QyaHBkR1VnT2lJeE1qQWlJR2hpWlhRZ09pSXhNakFpSUhKNFBTSTJOaUlnY25rOUlqWTJJaTgrUEhSbGVIUWdlRDBpTVRJd0lpQjVQU0kxTmlVbElHWnZiblF0YzJsNlpUMGlPRFVpSUhSbGVIUXRZV3hwZEhrc2RHVjRkQzFpWVhObFVHVjBjeUE5SW1GMWRHaGhVMlZqY21WMElpQmpjbTl3UFNJaklpQmpZWEF0Ym05dVl5MDVJalExSWlCa1pXTnZaR1ZzZFdKaGRHbHZiaTFpWVhObFBTSkNWRU1pSUdacGJIUmxjajBpTVNJK1Bqd3ZkR1Y0ZEQ0OEwzTjJaejQ9Iiwic2l6ZXMiOiIxMjB4MTIwIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwifV19"/>
+
+<!-- 아이폰 노치/홈바 대응 -->
+<style>
+  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+</style>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
